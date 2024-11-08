@@ -74,10 +74,10 @@ void printGraph(Graph* graph) {
 		Node* n = graph->verts[i];
 		while (n) {
 			if (n->next) {
-				printf("%d, ", n->vertex);
+				printf("%d: %d, ", n->vertex, n->weight);
 			}
 			else {
-				printf("%d", n->vertex);
+				printf("%d: %d", n->vertex, n->weight);
 			}
 			n = n->next;
 		}
