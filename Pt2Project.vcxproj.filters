@@ -18,8 +18,22 @@
     <ClCompile Include="DijkstraSeq.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="graphparse.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="testgraph" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="graphparse.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DijkstraSeq.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

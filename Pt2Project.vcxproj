@@ -128,9 +128,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="DijkstraSeq.c" />
+    <ClCompile Include="graphparse.c" />
+    <ClCompile Include="Main.c" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="testgraph" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DijkstraSeq.h" />
+    <ClInclude Include="graphparse.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
