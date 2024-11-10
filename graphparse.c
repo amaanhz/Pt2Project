@@ -6,12 +6,17 @@
 int neighbour(const Graph* graph, int u, int v)
 {
 	Node* n = graph->verts[u];
-	while (n->next) {
-		if (n->vertex == v) {
-			return n->weight;
+	if (n) {
+		while (n->next) {
+			if (n->vertex == v) {
+				break;
+			}
+			n = n->next;
 		}
+		return n->vertex == v ? n->weight : 0;
 	}
 	return 0;
+	
 }
 
 void addEdge(const Graph* graph, int i, int j, int w) {
