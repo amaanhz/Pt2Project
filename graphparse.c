@@ -89,4 +89,5 @@ void printGraph(const Graph* graph) {
 		}
 		printf("}\n");
 	}
+	printf("\n");
 }

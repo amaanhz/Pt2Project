@@ -43,7 +43,7 @@ int dqmin(Queue* q, int* dist) {
 void printResult(const DijkstraResult* result) {
 	for (int i = 0; i < result->size; i++) {
 		printf("Distance to %d: %d\n", i, result->dist[i]);
-		printf("Path: %d\n", i);
+		printf("Path: ", i);
 		int v = result->prev[i];
 		printf("%d <- ", i);
 		while (v != result->src) {
