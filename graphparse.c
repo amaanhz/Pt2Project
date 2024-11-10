@@ -74,7 +74,7 @@ Graph* fileparse(const char* file) {
 	return graph;
 }
 
-void printGraph(Graph* graph) {
+void printGraph(const Graph* graph) {
 	for (int i = 0; i < graph->size; i++) {
 		printf("%d -> {", i);
 		Node* n = graph->verts[i];

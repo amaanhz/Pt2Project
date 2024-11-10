@@ -40,7 +40,7 @@ int dqmin(Queue* q, int* dist) {
 	return min;
 }
 
-void printResult(DijkstraResult* result) {
+void printResult(const DijkstraResult* result) {
 	for (int i = 0; i < result->size; i++) {
 		printf("Distance to %d: %d\n", i, result->dist[i]);
 		printf("Path: %d\n", i);
@@ -87,6 +87,7 @@ DijkstraResult* DijkstraSSSP(const Graph* graph, int src) {
 	result->size = graph->size;
 	result->dist = dist; result->prev = prev; result->src = src;
 
+	free(queue);
 	return result;
 }
 

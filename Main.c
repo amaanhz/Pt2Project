@@ -13,6 +13,6 @@ int main(int argc, char* argv[]) {
 
 	printResult(result);
 
-	free(graph);
+	free(graph); free(result);
 	return 0;
 }
