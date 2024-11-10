@@ -3,6 +3,17 @@
 #include <string.h>
 #include "graphparse.h"
 
+int neighbour(const Graph* graph, int u, int v)
+{
+	Node* n = graph->verts[u];
+	while (n->next) {
+		if (n->vertex == v) {
+			return n->weight;
+		}
+	}
+	return 0;
+}
+
 void addEdge(const Graph* graph, int i, int j, int w) {
 	Node* n = graph->verts[i];
 	Node* nxt = malloc(sizeof(Node)); // initialise new node, it's gonna go somewhere

@@ -11,6 +11,7 @@ typedef struct Graph {
 	Node** verts;
 } Graph;
 
+int neighbour(const Graph* graph, int u, int v);
 void addEdge(const Graph* graph, int i, int j, int w);
 Graph* fileparse(const char* file);
 void printGraph(Graph* graph);
