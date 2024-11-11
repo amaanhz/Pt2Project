@@ -1,14 +1,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <cstring>
 #include "DijkstraSeq.h"
 #include "graphparse.h"
 
 Queue* createQueue(int size) {
 	Queue* queue = malloc(sizeof(Queue));
 	queue->max = size;  queue->tail = 0;
-	queue->items = malloc(sizeof(int) * size);
+	queue->items = malloc(sizeof(int) * size); // empty positions in queue are null, so calloc
 	return queue;
 }
 
@@ -23,21 +22,36 @@ void enq(Queue* q, int item) {
 }
 
 int dqmin(Queue* q, int* dist) {
-	int min; int mindist = INT_MAX; int d;
-	int j; // save the position in array we need to remove
+	int min = 0; int mindist = INT_MAX; int d;
+	int j = -1; // save the position in array we need to remove
 	for (int i = 0; i < q->tail; i++) {
 		d = dist[q->items[i]];
-		if (d < mindist) {
+		if (d <= mindist) {
 			mindist = d;
 			min = q->items[i];
+			j = i;
 		}
 	}
 	// need to reoragnise second half of queue
-	memmove(q->items[j], q->items[j + 1], sizeof(int) * (q->tail - j)); // move j+1.. to j
+	memmove(&(q->items[j]), &(q->items[j + 1]), sizeof(int) * (q->tail - j)); // move j+1.. to j
 	q->tail--;
 
 
 	return min;
+}
+
+void printResult(const DijkstraResult* result) {
+	for (int i = 0; i < result->size; i++) {
+		printf("Distance to %d: %d\n", i, result->dist[i]);
+		printf("Path: ", i);
+		int v = result->prev[i];
+		printf("%d <- ", i);
+		while (v != result->src) {
+			printf("%d <- ", v);
+			v = result->prev[v];
+		}
+		printf("%d\n\n", v);
+	}
 }
 
 
@@ -46,13 +60,12 @@ DijkstraResult* DijkstraSSSP(const Graph* graph, int src) {
 	int* prev = calloc(graph->size, sizeof(int)); // calloc to enforce null initial val
 	Queue* queue = createQueue(graph->size);
 
-	// set initial values
-	memset(dist, INT_MAX, sizeof(int) * graph->size);
-	dist[src] = 0;
-
 	for (int i = 0; i < graph->size; i++) {
-		if (i != src) { enq(queue, i); }
-	} // queue every node other than source
+		dist[i] = INT_MAX;
+		enq(queue, i);
+	}
+
+	dist[src] = 0;
 
 	while (queue->tail > 0) {
 		int u = dqmin(queue, dist);
@@ -72,8 +85,9 @@ DijkstraResult* DijkstraSSSP(const Graph* graph, int src) {
 
 	DijkstraResult* result = malloc(sizeof(DijkstraResult));
 	result->size = graph->size;
-	result->dist = dist; result->prev = prev;
+	result->dist = dist; result->prev = prev; result->src = src;
 
+	free(queue);
 	return result;
 }
 
