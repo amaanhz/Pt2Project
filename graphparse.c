@@ -39,16 +39,14 @@ Graph* fileparse(const char* file) {
 	graph->size = 0;
 	graph->verts = calloc(1, sizeof(Node**));
 
-	FILE* fp;
-	errno_t err = fopen_s(&fp, "testgraph", "r");
-
+	FILE* fp = fopen("../testgraph", "r");
 
 	if (fp) {
 		while (!feof(fp)) {
 			// parse each edge
 			int edge[3]; int part = 0;
 			while (part < 3) {
-				char c = fgetc(fp);
+				int c = fgetc(fp);
 				if (c == ' ') {
 					continue;
 				}
