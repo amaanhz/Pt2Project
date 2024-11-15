@@ -8,11 +8,22 @@ int main(int argc, char* argv[]) {
 	printGraph(graph);
 	printf("Running DijkstraSSSP:\n");
 
-	DijkstraResult* result = malloc(sizeof(DijkstraResult));
-	result = DijkstraSSSP(graph, 0);
+	// SSSP test //
+	//DijkstraResult* result = malloc(sizeof(DijkstraResult));
+	//result = DijkstraSSSP(graph, 0);
+	//printResult(result, 0, graph->size);
+	///////////////
 
-	printResult(result);
+	// APSP test //
+	
+	DijkstraResult** results = DijkstraAPSP(graph);
+	for (int i = 0; i < graph->size; i++) {
+		printf("Result for node %d:\n", i);
+		printResult(results[i], i, graph->size);
+	}
 
-	free(graph); free(result);
+	///////////////
+
+	free(graph); free(results);
 	return 0;
 }

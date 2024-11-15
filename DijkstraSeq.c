@@ -40,18 +40,29 @@ int dqmin(Queue* q, int* dist) {
 	return min;
 }
 
-void printResult(const DijkstraResult* result) {
-	for (int i = 0; i < result->size; i++) {
-		printf("Distance to %d: %d\n", i, result->dist[i]);
-		printf("Path: ", i);
-		int v = result->prev[i];
-		printf("%d <- ", i);
-		while (v != result->src) {
-			printf("%d <- ", v);
-			v = result->prev[v];
+void printResult(const DijkstraResult* result, int src, int size) {
+	for (int i = 0; i < size; i++) {
+		if (i != src) {
+			if (result->dist[i] < INT_MAX) {
+				printf("Distance to %d: %d, ", i, result->dist[i]);
+				printf("Path: ");
+				int v = result->prev[i];
+				printf("%d <- ", i);
+				while (v != src && v != i) {
+					printf("%d <- ", v);
+					v = result->prev[v];
+				}
+				printf("%d\n", v);
+			}
+			else {
+				printf("%d is unreachable.\n", i);
+			}
 		}
-		printf("%d\n\n", v);
+		else {
+			printf("%d is the source node.\n", i);
+		}
 	}
+	printf("\n");
 }
 
 
@@ -69,6 +80,7 @@ DijkstraResult* DijkstraSSSP(const Graph* graph, int src) {
 
 	while (queue->tail > 0) {
 		int u = dqmin(queue, dist);
+		if (dist[u] == INT_MAX) { continue; }
 
 		for (int i = 0; i < queue->tail; i++) {
 			int v = queue->items[i];
@@ -84,10 +96,20 @@ DijkstraResult* DijkstraSSSP(const Graph* graph, int src) {
 	}
 
 	DijkstraResult* result = malloc(sizeof(DijkstraResult));
-	result->size = graph->size;
-	result->dist = dist; result->prev = prev; result->src = src;
+	result->dist = dist; result->prev = prev; //result->src = src;
 
 	free(queue);
 	return result;
 }
+
+DijkstraResult** DijkstraAPSP(const Graph* graph)
+{
+	DijkstraResult** results = malloc(sizeof(DijkstraResult*) * graph->size);
+	for (int i = 0; i < graph->size; i++) {
+		results[i] = DijkstraSSSP(graph, i);
+	}
+	return results;
+}
+
+
 
