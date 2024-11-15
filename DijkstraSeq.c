@@ -111,5 +111,9 @@ DijkstraResult** DijkstraAPSP(const Graph* graph)
 	return results;
 }
 
+DijkstraResult** DijkstraAPSP_mt(const Graph* graph)
+{
+}
+
 
 
