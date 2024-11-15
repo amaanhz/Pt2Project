@@ -15,7 +15,7 @@ typedef struct DijkstraResult {
 Queue* createQueue(int size);
 void enq(Queue* q, int item);
 int dqmin(Queue* q, int* dist);
-void printResult(DijkstraResult* result, int size);
+void printResult(DijkstraResult* result, int src, int size);
 
 DijkstraResult* DijkstraSSSP(const Graph* graph, int src);
 DijkstraResult** DijkstraAPSP(const Graph* graph);
