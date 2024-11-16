@@ -4,7 +4,7 @@
 #include "DijkstraSeq.h"
 
 int main(int argc, char* argv[]) {
-	Graph* graph = fileparse("testgraph");
+	Graph* graph = fileparse("USairport500");
 	printGraph(graph);
 	//printf("Running DijkstraSSSP:\n");
 

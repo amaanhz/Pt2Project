@@ -39,19 +39,31 @@ Graph* fileparse(const char* file) {
 	graph->size = 0;
 	graph->verts = calloc(1, sizeof(Node**));
 
-	FILE* fp = fopen("../testgraph", "r");
+	char path[strlen(file) + 3];
+	strcpy(path, "../"); strcat(path, file);
+
+	FILE* fp = fopen(path, "r");
 
 	if (fp) {
+		int line = 0;
 		while (!feof(fp)) {
+			++line;
+			//printf("Line: %d\n", line);
 			// parse each edge
 			int edge[3]; int part = 0;
 			while (part < 3) {
 				int c = fgetc(fp);
-				if (c == ' ') {
+				if (c == ' ' || c == '\n') {
 					continue;
 				}
 				else {
 					int v = c - '0';
+					c = fgetc(fp);
+					while (c != ' ' && c != '\n' && !feof(fp))
+					{
+						v = 10 * v + c - '0';
+						c = fgetc(fp);
+					}
 					edge[part] = v;
 					if (part != 2) {
 						int oldsize = graph->size; // save old size
@@ -64,8 +76,8 @@ Graph* fileparse(const char* file) {
 					part++;
 				}
 			}
+			//printf("Adding edge %d -> %d (%d) \n\n", edge[0], edge[1], edge[2]);
 			addEdge(graph, edge[0], edge[1], edge[2]);
-			fgetc(fp); // discard \n or force into EOF
 		}
 	}
 	fclose(fp);
