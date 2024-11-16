@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "graphparse.h"
 #include "DijkstraSeq.h"
 
@@ -15,22 +16,44 @@ int main(int argc, char* argv[]) {
 	///////////////
 
 	// APSP test //
-	
-	DijkstraResult** results = DijkstraAPSP_mt(graph);
-	for (int i = 0; i < graph->size; i++) {
-		printf("Result for node %d:\n", i);
-		printResult(results[i], i, graph->size);
-	}
+
+	DijkstraResult** results = NULL;
+
+	struct timespec start, end;
+
+	clock_gettime(CLOCK_MONOTONIC, &start);
+	DijkstraAPSP(graph);
+	clock_gettime(CLOCK_MONOTONIC, &end);
+
+	double time_spent = (end.tv_sec - start.tv_sec);
+	time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+	printf("Runtime for sequential: %f\n", time_spent);
+
+	clock_gettime(CLOCK_MONOTONIC, &start);
+	results = DijkstraAPSP_mt(graph);
+	clock_gettime(CLOCK_MONOTONIC, &end);
+
+	time_spent = (end.tv_sec - start.tv_sec);
+	time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+	printf("Runtime for MT: %f\n", time_spent);
+
+
+	// for (int i = 0; i < graph->size; i++) {
+	// 	printf("Result for node %d:\n", i);
+	// 	printResult(results[i], i, graph->size);
+	// }
 
 	///////////////
 
 	// Freeing Memory so compiler stops shouting //
 	for (int i = 0; i < graph->size; i++)
 	{
-		free(results[i]->dist);
-		free(results[i]->prev);
-		free(results[i]);
-
+		if (results)
+		{
+			free(results[i]->dist);
+			free(results[i]->prev);
+			free(results[i]);
+		}
 		Node* n = graph->verts[i];
 		if (n)
 		{
