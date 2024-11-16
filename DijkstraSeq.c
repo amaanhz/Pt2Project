@@ -6,13 +6,6 @@
 #include "DijkstraSeq.h"
 #include "graphparse.h"
 
-Queue* createQueue(int size) {
-	Queue* queue = malloc(sizeof(Queue));
-	queue->max = size;  queue->tail = 0;
-	queue->items = malloc(sizeof(int) * size); // empty positions in queue are null, so calloc
-	return queue;
-}
-
 void enq(Queue* q, int item) {
 	if (q->tail < q->max) {
 		q->items[q->tail] = item;
@@ -71,21 +64,24 @@ void printResult(const DijkstraResult* result, int src, int size) {
 DijkstraResult* DijkstraSSSP(const Graph* graph, int src) {
 	int* dist = malloc(sizeof(int) * graph->size);
 	int* prev = calloc(graph->size, sizeof(int)); // calloc to enforce null initial val
-	Queue* queue = createQueue(graph->size);
+	int* items[graph->size];
+	Queue queue = {
+		.items = items,  .max = graph->size, .tail=0
+	};
 
 	for (int i = 0; i < graph->size; i++) {
 		dist[i] = INT_MAX;
-		enq(queue, i);
+		enq(&queue, i);
 	}
 
 	dist[src] = 0;
 
-	while (queue->tail > 0) {
-		int u = dqmin(queue, dist);
+	while (queue.tail > 0) {
+		int u = dqmin(&queue, dist);
 		if (dist[u] == INT_MAX) { continue; }
 
-		for (int i = 0; i < queue->tail; i++) {
-			int v = queue->items[i];
+		for (int i = 0; i < queue.tail; i++) {
+			int v = queue.items[i];
 			int d = neighbour(graph, u, v);
 			if (d) {
 				int thruU = dist[u] + d;
@@ -99,21 +95,15 @@ DijkstraResult* DijkstraSSSP(const Graph* graph, int src) {
 
 	DijkstraResult* result = malloc(sizeof(DijkstraResult));
 	result->dist = dist; result->prev = prev; //result->src = src;
-
-	free(queue);
+	
 	return result;
 }
 
 void* DijkstraSSSP_t(void* args) {
-	printf("New thread started!\n");
 	DijkstraArgs* a = (DijkstraArgs*) args;
 	const Graph* graph = a->graph;
 	const int src = a->src;
-	//DijkstraResult** results = a->results;
-	//free(args);
-
-	//results[src] = DijkstraSSSP(graph, src);
-
+	free(args);
 	DijkstraResult* result = DijkstraSSSP(graph, src);
 	return (void*) result;
 }
@@ -133,8 +123,9 @@ DijkstraResult** DijkstraAPSP_mt(const Graph* graph)
 	DijkstraResult** results = malloc(sizeof(DijkstraResult*) * graph->size);
 
 	for (int i = 0; i < graph->size; i++) {
-		DijkstraArgs args = {.graph = graph, .src = i};
-		pthread_create(threads + i, NULL, DijkstraSSSP_t, (void*) &args);
+		DijkstraArgs* args = malloc(sizeof(DijkstraArgs)); // need to malloc so args isn't deleted before thread finishes
+		args->graph = graph; args->src = i;
+		pthread_create(threads + i, NULL, DijkstraSSSP_t, (void*) args);
 	}
 
 	for (int i = 0; i < graph->size; i++)

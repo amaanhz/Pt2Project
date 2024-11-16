@@ -24,6 +24,32 @@ int main(int argc, char* argv[]) {
 
 	///////////////
 
+	// Freeing Memory so compiler stops shouting //
+	for (int i = 0; i < graph->size; i++)
+	{
+		free(results[i]->dist);
+		free(results[i]->prev);
+		free(results[i]);
+
+		Node* n = graph->verts[i];
+		if (n)
+		{
+			Node* list[graph->size]; int x = 0;
+			while (n->next)
+			{
+				list[x] = n;
+				n = n->next;
+				x++;
+			}
+			list[x] = n; x++;
+			for (int y = 0; y < x; y++) { free(list[y]); }
+		}
+	}
+
+	free(graph->verts);
 	free(graph); free(results);
+
+	///////////////////////////////////////////////
+
 	return 0;
 }
