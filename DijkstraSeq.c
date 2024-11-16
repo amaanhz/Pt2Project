@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
+#include <pthread.h>
 #include "DijkstraSeq.h"
 #include "graphparse.h"
 
@@ -44,7 +45,7 @@ int dqmin(Queue* q, int* dist) {
 void printResult(const DijkstraResult* result, int src, int size) {
 	for (int i = 0; i < size; i++) {
 		if (i != src) {
-			if (result->dist[i] < INT_MAX) {
+			if (result->dist[i] >= 0 && result->dist[i] < INT_MAX) {
 				printf("Distance to %d: %d, ", i, result->dist[i]);
 				printf("Path: ");
 				int v = result->prev[i];
@@ -103,6 +104,20 @@ DijkstraResult* DijkstraSSSP(const Graph* graph, int src) {
 	return result;
 }
 
+void* DijkstraSSSP_t(void* args) {
+	printf("New thread started!\n");
+	DijkstraArgs* a = (DijkstraArgs*) args;
+	const Graph* graph = a->graph;
+	const int src = a->src;
+	//DijkstraResult** results = a->results;
+	//free(args);
+
+	//results[src] = DijkstraSSSP(graph, src);
+
+	DijkstraResult* result = DijkstraSSSP(graph, src);
+	return (void*) result;
+}
+
 DijkstraResult** DijkstraAPSP(const Graph* graph)
 {
 	DijkstraResult** results = malloc(sizeof(DijkstraResult*) * graph->size);
@@ -114,6 +129,22 @@ DijkstraResult** DijkstraAPSP(const Graph* graph)
 
 DijkstraResult** DijkstraAPSP_mt(const Graph* graph)
 {
+	pthread_t* threads[graph->size];
+	DijkstraResult** results = malloc(sizeof(DijkstraResult*) * graph->size);
+
+	for (int i = 0; i < graph->size; i++) {
+		DijkstraArgs args = {.graph = graph, .src = i};
+		pthread_create(threads + i, NULL, DijkstraSSSP_t, (void*) &args);
+	}
+
+	for (int i = 0; i < graph->size; i++)
+	{
+		void* vresult;
+		pthread_join(threads[i], &vresult);
+		results[i] = (DijkstraResult*) vresult;
+	}
+
+	return results;
 }
 
 

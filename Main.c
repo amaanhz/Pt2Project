@@ -6,7 +6,7 @@
 int main(int argc, char* argv[]) {
 	Graph* graph = fileparse("testgraph");
 	printGraph(graph);
-	printf("Running DijkstraSSSP:\n");
+	//printf("Running DijkstraSSSP:\n");
 
 	// SSSP test //
 	//DijkstraResult* result = malloc(sizeof(DijkstraResult));
@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
 
 	// APSP test //
 	
-	DijkstraResult** results = DijkstraAPSP(graph);
+	DijkstraResult** results = DijkstraAPSP_mt(graph);
 	for (int i = 0; i < graph->size; i++) {
 		printf("Result for node %d:\n", i);
 		printResult(results[i], i, graph->size);
