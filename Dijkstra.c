@@ -3,8 +3,8 @@
 #include <string.h>
 #include <limits.h>
 #include <pthread.h>
-#include "DijkstraSeq.h"
-#include "graphparse.h"
+#include "Dijkstra.h"
+#include "GraphParse.h"
 
 void enq(Queue* q, int item) {
 	if (q->tail < q->max) {

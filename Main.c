@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include "graphparse.h"
-#include "DijkstraSeq.h"
+#include "GraphParse.h"
+#include "Dijkstra.h"
 
 int main(int argc, char* argv[]) {
 	Graph* graph = fileparse("USairport500");

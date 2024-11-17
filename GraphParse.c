@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "graphparse.h"
+#include "GraphParse.h"
 
 int neighbour(const Graph* graph, int u, int v)
 {

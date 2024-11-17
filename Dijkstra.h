@@ -1,5 +1,5 @@
 #pragma once
-#include "graphparse.h"
+#include "GraphParse.h"
 
 typedef struct Queue {
 	int max;
