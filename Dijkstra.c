@@ -16,7 +16,7 @@ void enq(Queue* q, int item) {
 	}
 }
 
-int dqmin(Queue* q, int* dist) {
+int dqmin(Queue* q, const int* dist) {
 	int min = 0; int mindist = INT_MAX; int d;
 	int j = -1; // save the position in array we need to remove
 	for (int i = 0; i < q->tail; i++) {
@@ -64,9 +64,9 @@ void printResult(const DijkstraResult* result, int src, int size) {
 DijkstraResult* DijkstraSSSP(const Graph* graph, int src) {
 	int* dist = malloc(sizeof(int) * graph->size);
 	int* prev = calloc(graph->size, sizeof(int)); // calloc to enforce null initial val
-	int* items[graph->size];
+	int items[graph->size];
 	Queue queue = {
-		.items = items,  .max = graph->size, .tail=0
+		.items = items, .max = graph->size, .tail=0
 	};
 
 	for (int i = 0; i < graph->size; i++) {
@@ -99,13 +99,39 @@ DijkstraResult* DijkstraSSSP(const Graph* graph, int src) {
 	return result;
 }
 
-void* DijkstraSSSP_t(void* args) {
+void DijkstraSSSP_t(const void* args) {	// Initialise SSSP threads
 	DijkstraArgs* a = (DijkstraArgs*) args;
-	const Graph* graph = a->graph;
-	const int src = a->src;
-	free(args);
-	DijkstraResult* result = DijkstraSSSP(graph, src);
-	return (void*) result;
+
+	// unpacking on init //
+	const Graph* graph = a->graph; pthread_mutex_t* q_lock = a->q_lock;
+	pthread_mutex_t* r_lock = a->r_lock; int* next_node = a->next_node;
+	DijkstraResult** results = a->results;
+	///////////////////////
+
+	while (1)
+	{
+		pthread_mutex_lock(q_lock);
+		int src = *next_node;
+		if (src < graph->size)
+		{
+			(*next_node)++;
+			pthread_mutex_unlock(q_lock);
+
+			DijkstraResult* result = malloc(sizeof(DijkstraResult));
+			result = DijkstraSSSP(graph, src);
+
+			pthread_mutex_lock(r_lock);
+			results[src] = result;
+			pthread_mutex_unlock(r_lock);
+		}
+		else
+		{
+			pthread_mutex_unlock(q_lock);
+			pthread_exit(NULL);
+		}
+
+		pthread_mutex_unlock(q_lock);
+	}
 }
 
 DijkstraResult** DijkstraAPSP(const Graph* graph)
@@ -117,24 +143,31 @@ DijkstraResult** DijkstraAPSP(const Graph* graph)
 	return results;
 }
 
-DijkstraResult** DijkstraAPSP_mt(const Graph* graph)
+DijkstraResult** DijkstraAPSP_mt(const Graph* graph, int numthreads)
 {
-	pthread_t* threads[graph->size];
+	pthread_t* threads[numthreads];
 	DijkstraResult** results = malloc(sizeof(DijkstraResult*) * graph->size);
 
-	for (int i = 0; i < graph->size; i++) {
-		DijkstraArgs* args = malloc(sizeof(DijkstraArgs)); // need to malloc so args isn't deleted before thread finishes
-		args->graph = graph; args->src = i;
-		pthread_create(threads + i, NULL, DijkstraSSSP_t, (void*) args);
-	}
+	int next_node = 0;
+	pthread_mutex_t q_lock; pthread_mutex_init(&q_lock, NULL); // queue lock
+	pthread_mutex_t r_lock; pthread_mutex_init(&r_lock, NULL); // result lock
 
-	for (int i = 0; i < graph->size; i++)
+	DijkstraArgs* args = malloc(sizeof(DijkstraArgs));
+	args->next_node = &next_node; args->results = results;
+	args->graph = graph; args->q_lock = &q_lock; args->r_lock = &r_lock;
+
+	for (int t = 0; t < numthreads; t++)
 	{
-		void* vresult;
-		pthread_join(threads[i], &vresult);
-		results[i] = (DijkstraResult*) vresult;
+		pthread_create((pthread_t*)threads + t, NULL, DijkstraSSSP_t, (void*) args);
 	}
 
+	for (int t = 0; t < numthreads; t++)
+	{
+		pthread_join(threads[t], NULL);
+	}
+
+	pthread_mutex_destroy(&q_lock); pthread_mutex_destroy(&r_lock);
+	free(args);
 	return results;
 }
 

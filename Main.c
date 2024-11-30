@@ -6,7 +6,7 @@
 
 int main(int argc, char* argv[]) {
 	Graph* graph = fileparse("USairport500");
-	printGraph(graph);
+	//printGraph(graph);
 	//printf("Running DijkstraSSSP:\n");
 
 	// SSSP test //
@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
 	printf("Runtime for sequential: %f\n", time_spent);
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	results = DijkstraAPSP_mt(graph);
+	results = DijkstraAPSP_mt(graph, 16);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
 	time_spent = (end.tv_sec - start.tv_sec);
@@ -38,10 +38,10 @@ int main(int argc, char* argv[]) {
 	printf("Runtime for MT: %f\n", time_spent);
 
 
-	// for (int i = 0; i < graph->size; i++) {
-	// 	printf("Result for node %d:\n", i);
-	// 	printResult(results[i], i, graph->size);
-	// }
+	/* for (int i = 0; i < graph->size; i++) {
+		printf("Result for node %d:\n", i);
+		printResult(results[i], i, graph->size);
+	} */
 
 	///////////////
 
