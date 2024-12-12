@@ -101,3 +101,15 @@ void printGraph(const Graph* graph) {
 	}
 	printf("\n");
 }
+
+int resultsEq(const Result* r1, const Result* r2, int size)
+{
+	for (int i = 0; i < size; i++)
+	{
+		if (r1->dist[i] != r2->dist[i] || r1->prev[i] != r2->prev[i])
+		{
+			return 0;
+		}
+	}
+	return 1;
+}

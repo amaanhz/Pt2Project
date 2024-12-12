@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
 
 	// APSP test //
 
-	DijkstraResult** results = NULL;
+	Result** results = NULL;
 
 	struct timespec start, end;
 
@@ -35,21 +35,26 @@ int main(int argc, char* argv[]) {
 	results = DijkstraAPSP_mt(graph, 16);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
+	//printResult(results[1], 1, graph->size);
+
 	time_spent = (end.tv_sec - start.tv_sec);
 	time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
 	printf("Runtime for MT: %f\n", time_spent);
 
-	BMFResult* result = NULL;
+	Result* result = NULL;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	result = BMFordSSSP(graph, 0);
+	result = BMFordSSSP(graph, 1);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
 	time_spent = (end.tv_sec - start.tv_sec);
 	time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
 	printf("Runtime for BMF_SSSP: %f\n", time_spent);
 
-	printResult((DijkstraResult*)result, 0, graph->size);
+	//printResult(result, 1, graph->size);
+	printf("\n");
+
+	printf("Results for Dijkstra and BMFord are %s", resultsEq(result, results[1], graph->size) ? "equal" : "non-equal");
 	/* for (int i = 0; i < graph->size; i++) {
 		printf("Result for node %d:\n", i);
 		printResult(results[i], i, graph->size);

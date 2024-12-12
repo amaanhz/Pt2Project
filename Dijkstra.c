@@ -35,7 +35,7 @@ int dqmin(Queue* q, const int* dist) {
 	return min;
 }
 
-void printResult(const DijkstraResult* result, int src, int size) {
+void printResult(const Result* result, int src, int size) {
 	for (int i = 0; i < size; i++) {
 		if (i != src) {
 			if (result->dist[i] >= 0 && result->dist[i] < INT_MAX) {
@@ -61,7 +61,7 @@ void printResult(const DijkstraResult* result, int src, int size) {
 }
 
 
-DijkstraResult* DijkstraSSSP(const Graph* graph, int src) {
+Result* DijkstraSSSP(const Graph* graph, int src) {
 	int* dist = malloc(sizeof(int) * graph->size);
 	int* prev = calloc(graph->size, sizeof(int)); // calloc to enforce null initial val
 	int items[graph->size];
@@ -93,7 +93,7 @@ DijkstraResult* DijkstraSSSP(const Graph* graph, int src) {
 		}
 	}
 
-	DijkstraResult* result = malloc(sizeof(DijkstraResult));
+	Result* result = malloc(sizeof(Result));
 	result->dist = dist; result->prev = prev; //result->src = src;
 	
 	return result;
@@ -105,7 +105,7 @@ void DijkstraSSSP_t(const void* args) {	// Initialise SSSP threads
 	// unpacking on init //
 	const Graph* graph = a->graph; pthread_mutex_t* q_lock = a->q_lock;
 	pthread_mutex_t* r_lock = a->r_lock; int* next_node = a->next_node;
-	DijkstraResult** results = a->results;
+	Result** results = a->results;
 	///////////////////////
 
 	while (1)
@@ -117,7 +117,7 @@ void DijkstraSSSP_t(const void* args) {	// Initialise SSSP threads
 			(*next_node)++;
 			pthread_mutex_unlock(q_lock);
 
-			DijkstraResult* result = malloc(sizeof(DijkstraResult));
+			Result* result = malloc(sizeof(Result));
 			result = DijkstraSSSP(graph, src);
 
 			pthread_mutex_lock(r_lock);
@@ -134,19 +134,19 @@ void DijkstraSSSP_t(const void* args) {	// Initialise SSSP threads
 	}
 }
 
-DijkstraResult** DijkstraAPSP(const Graph* graph)
+Result** DijkstraAPSP(const Graph* graph)
 {
-	DijkstraResult** results = malloc(sizeof(DijkstraResult*) * graph->size);
+	Result** results = malloc(sizeof(Result*) * graph->size);
 	for (int i = 0; i < graph->size; i++) {
 		results[i] = DijkstraSSSP(graph, i);
 	}
 	return results;
 }
 
-DijkstraResult** DijkstraAPSP_mt(const Graph* graph, int numthreads)
+Result** DijkstraAPSP_mt(const Graph* graph, int numthreads)
 {
 	pthread_t* threads[numthreads];
-	DijkstraResult** results = malloc(sizeof(DijkstraResult*) * graph->size);
+	Result** results = malloc(sizeof(Result*) * graph->size);
 
 	int next_node = 0;
 	pthread_mutex_t q_lock; pthread_mutex_init(&q_lock, NULL); // queue lock
