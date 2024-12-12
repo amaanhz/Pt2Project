@@ -5,4 +5,4 @@
 void relax(int u, const Node* v, int* dist, int* prev);
 
 Result* BMFordSSSP(const Graph* graph, int src);
-
+Result** BMFordAPSP(const Graph* graph);

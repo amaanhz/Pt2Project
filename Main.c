@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
 
 	// APSP test //
 
-	Result** results = NULL;
+	Result** d_results = NULL;
 
 	struct timespec start, end;
 
@@ -29,65 +29,44 @@ int main(int argc, char* argv[]) {
 
 	double time_spent = (end.tv_sec - start.tv_sec);
 	time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-	printf("Runtime for sequential: %f\n", time_spent);
+	printf("Runtime for Dijkstra_APSP (Seq): %f\n", time_spent);
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	results = DijkstraAPSP_mt(graph, 16);
+	d_results = DijkstraAPSP_mt(graph, 16);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
 	//printResult(results[1], 1, graph->size);
 
 	time_spent = (end.tv_sec - start.tv_sec);
 	time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-	printf("Runtime for MT: %f\n", time_spent);
+	printf("Runtime for Dijkstra_APSP (MT): %f\n", time_spent);
 
-	Result* result = NULL;
+	Result** b_results = NULL;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	result = BMFordSSSP(graph, 1);
+	b_results = BMFordAPSP(graph);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
 	time_spent = (end.tv_sec - start.tv_sec);
 	time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-	printf("Runtime for BMF_SSSP: %f\n", time_spent);
+	printf("Runtime for Bellman-Ford_APSP (Seq): %f\n", time_spent);
 
-	//printResult(result, 1, graph->size);
-	printf("\n");
+	//printf("\n");
+	//printResult(d_results[14], 14, graph->size);
+	//printResult(b_results[14], 14, graph->size);
 
-	printf("Results for Dijkstra and BMFord are %s", resultsEq(result, results[1], graph->size) ? "equal" : "non-equal");
-	/* for (int i = 0; i < graph->size; i++) {
-		printf("Result for node %d:\n", i);
-		printResult(results[i], i, graph->size);
-	} */
+
+	printf("Results for Dijkstra and BMFord are %s", resultsEq(d_results, b_results, graph->size) ? "equal" : "non-equal");
+
 
 	///////////////
 
 	// Freeing Memory so compiler stops shouting //
-	for (int i = 0; i < graph->size; i++)
-	{
-		if (results)
-		{
-			free(results[i]->dist);
-			free(results[i]->prev);
-			free(results[i]);
-		}
-		Node* n = graph->verts[i];
-		if (n)
-		{
-			Node* list[graph->size]; int x = 0;
-			while (n->next)
-			{
-				list[x] = n;
-				n = n->next;
-				x++;
-			}
-			list[x] = n; x++;
-			for (int y = 0; y < x; y++) { free(list[y]); }
-		}
-	}
 
-	free(graph->verts);
-	free(graph); free(results);
+	freeResults(b_results, graph->size);
+	freeResults(d_results, graph->size);
+	freeGraph(graph);
+
 
 	///////////////////////////////////////////////
 

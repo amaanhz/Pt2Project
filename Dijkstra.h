@@ -20,7 +20,6 @@ typedef struct DijkstraArgs {
 Queue* createQueue(int size);
 void enq(Queue* q, int item);
 int dqmin(Queue* q, const int* dist);
-void printResult(const Result* result, int src, int size);
 
 Result* DijkstraSSSP(const Graph* graph, int src);
 void DijkstraSSSP_t(const void* args); // Wrapper for pthread

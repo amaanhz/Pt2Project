@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
 #include "GraphParse.h"
 
 int neighbour(const Graph* graph, int u, int v)
@@ -102,14 +103,95 @@ void printGraph(const Graph* graph) {
 	printf("\n");
 }
 
-int resultsEq(const Result* r1, const Result* r2, int size)
+void printResult(const Result* result, int src, int size) {
+	for (int i = 0; i < size; i++) {
+		if (i != src) {
+			if (result->dist[i] >= 0 && result->dist[i] < INT_MAX) {
+				printf("Distance to %d: %d, ", i, result->dist[i]);
+				printf("Path: ");
+				int v = result->prev[i];
+				printf("%d <- ", i);
+				while (v != src && v != i) {
+					printf("%d <- ", v);
+					v = result->prev[v];
+				}
+				printf("%d\n", v);
+			}
+			else {
+				printf("%d is unreachable.\n", i);
+			}
+		}
+		else {
+			printf("%d is the source node.\n", i);
+		}
+	}
+	printf("\n");
+}
+
+void printResults(const Result** results, int size)
+{
+	for (int i = 0; i < size; i++) {
+		printf("Result for node %d:\n", i);
+		printResult(results[i], i, size);
+	}
+}
+
+int resultEq(const Result* r1, const Result* r2, int size)
 {
 	for (int i = 0; i < size; i++)
 	{
-		if (r1->dist[i] != r2->dist[i] || r1->prev[i] != r2->prev[i])
+		if (r1->dist[i] != r2->dist[i]) // Don't care about exact route, as long as distance is the same
 		{
+			printf("Inequality between distance/routes for node %d\n", i);
 			return 0;
 		}
 	}
 	return 1;
+}
+
+int resultsEq(const Result** r1, const Result** r2, int size)
+{
+	for (int i = 0; i < size; i++)
+	{
+		if (!resultEq(r1[i], r2[i], size))
+		{
+			printf("Unequal results for APSP at node %d\n\n", i);
+			return 0;
+		}
+	}
+	return 1;
+}
+
+void freeGraph(Graph* graph)
+{
+	for (int i = 0; i < graph->size; i++)
+	{
+		Node* n = graph->verts[i];
+		if (n)
+		{
+			Node* list[graph->size]; int x = 0;
+			while (n->next)
+			{
+				list[x] = n;
+				n = n->next;
+				x++;
+			}
+			list[x] = n; x++;
+			for (int y = 0; y < x; y++) { free(list[y]); }
+		}
+	}
+	free(graph->verts);
+	free(graph);
+}
+
+void freeResults(Result** results, int size)
+{
+	for (int n = 0; n < size; n++)
+	{
+		Result* result = results[n];
+		free(result->dist);
+		free(result->prev);
+		free(result);
+	}
+	free(results);
 }

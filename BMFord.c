@@ -44,3 +44,14 @@ Result* BMFordSSSP(const Graph* graph, int src) {
 
     return result;
 }
+
+Result** BMFordAPSP(const Graph* graph)
+{
+    Result** results = malloc(sizeof(Result*) * graph->size);
+    for (int n = 0; n < graph->size; n++)
+    {
+        results[n] = BMFordSSSP(graph, n);
+    }
+    return results;
+}
+

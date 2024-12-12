@@ -35,30 +35,7 @@ int dqmin(Queue* q, const int* dist) {
 	return min;
 }
 
-void printResult(const Result* result, int src, int size) {
-	for (int i = 0; i < size; i++) {
-		if (i != src) {
-			if (result->dist[i] >= 0 && result->dist[i] < INT_MAX) {
-				printf("Distance to %d: %d, ", i, result->dist[i]);
-				printf("Path: ");
-				int v = result->prev[i];
-				printf("%d <- ", i);
-				while (v != src && v != i) {
-					printf("%d <- ", v);
-					v = result->prev[v];
-				}
-				printf("%d\n", v);
-			}
-			else {
-				printf("%d is unreachable.\n", i);
-			}
-		}
-		else {
-			printf("%d is the source node.\n", i);
-		}
-	}
-	printf("\n");
-}
+
 
 
 Result* DijkstraSSSP(const Graph* graph, int src) {
