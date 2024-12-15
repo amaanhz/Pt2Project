@@ -77,7 +77,7 @@ Result* DijkstraSSSP(const Graph* graph, int src) {
 }
 
 void DijkstraSSSP_t(const void* args) {	// Initialise SSSP threads
-	DijkstraArgs* a = (DijkstraArgs*) args;
+	MultiSSSPArgs* a = (MultiSSSPArgs*) args;
 
 	// unpacking on init //
 	const Graph* graph = a->graph; pthread_mutex_t* q_lock = a->q_lock;
@@ -129,7 +129,7 @@ Result** DijkstraAPSP_mt(const Graph* graph, int numthreads)
 	pthread_mutex_t q_lock; pthread_mutex_init(&q_lock, NULL); // queue lock
 	pthread_mutex_t r_lock; pthread_mutex_init(&r_lock, NULL); // result lock
 
-	DijkstraArgs* args = malloc(sizeof(DijkstraArgs));
+	MultiSSSPArgs* args = malloc(sizeof(MultiSSSPArgs));
 	args->next_node = &next_node; args->results = results;
 	args->graph = graph; args->q_lock = &q_lock; args->r_lock = &r_lock;
 

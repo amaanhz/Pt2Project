@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
+#include <time.h>
 #include "GraphParse.h"
 
 int neighbour(const Graph* graph, int u, int v)

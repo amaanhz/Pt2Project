@@ -8,15 +8,6 @@ typedef struct Queue {
 } Queue;
 
 
-
-typedef struct DijkstraArgs {
-	int* next_node;
-	pthread_mutex_t* q_lock;
-	pthread_mutex_t* r_lock;
-	const Graph* graph;
-	Result** results;
-} DijkstraArgs;
-
 Queue* createQueue(int size);
 void enq(Queue* q, int item);
 int dqmin(Queue* q, const int* dist);

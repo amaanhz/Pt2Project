@@ -51,6 +51,16 @@ int main(int argc, char* argv[]) {
 	time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
 	printf("Runtime for Bellman-Ford_APSP (Seq): %f\n", time_spent);
 
+	clock_gettime(CLOCK_MONOTONIC, &start);
+	b_results = BMFordAPSP_mt_a(graph, 16);
+	clock_gettime(CLOCK_MONOTONIC, &end);
+
+	time_spent = (end.tv_sec - start.tv_sec);
+	time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+	printf("Runtime for Bellman-Ford_APSP (MT): %f\n", time_spent);
+
+
+
 	//printf("\n");
 	//printResult(d_results[14], 14, graph->size);
 	//printResult(b_results[14], 14, graph->size);

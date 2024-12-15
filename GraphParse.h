@@ -1,4 +1,5 @@
 #pragma once
+#include <pthread.h>
 
 typedef struct Node {
 	int vertex;
@@ -15,6 +16,14 @@ typedef struct Result {
 	int* dist;
 	int* prev;
 } Result;
+
+typedef struct MultiSSSPArgs {
+	int* next_node;
+	pthread_mutex_t* q_lock;
+	pthread_mutex_t* r_lock;
+	const Graph* graph;
+	Result** results;
+} MultiSSSPArgs;
 
 int neighbour(const Graph* graph, int u, int v);
 void addEdge(const Graph* graph, int i, int j, int w);
