@@ -5,6 +5,45 @@
 #include <time.h>
 #include "GraphParse.h"
 
+void enq(Queue* q, int item) {
+	if (q->tail < q->max) {
+		q->items[q->tail] = item;
+		q->tail++;
+	}
+	else {
+		printf("Tried to enqueue past max size!\n");
+	}
+}
+
+int dqmin(Queue* q, const int* dist) {
+	int min = 0; int mindist = INT_MAX; int d;
+	int j = -1; // save the position in array we need to remove
+	for (int i = 0; i < q->tail; i++) {
+		d = dist[q->items[i]];
+		if (d <= mindist) {
+			mindist = d;
+			min = q->items[i];
+			j = i;
+		}
+	}
+	// need to reoragnise second half of queue
+	memmove(&(q->items[j]), &(q->items[j + 1]), sizeof(int) * (q->tail - j)); // move j+1.. to j
+	q->tail--;
+
+
+	return min;
+}
+
+int dq(Queue* q)
+{
+	int next = *q->items;
+	q->tail--;
+
+	memmove(q->items + 1, q->items, sizeof(int) * q->tail);
+
+	return next;
+}
+
 int neighbour(const Graph* graph, int u, int v)
 {
 	Node* n = graph->verts[u];

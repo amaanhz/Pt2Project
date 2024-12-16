@@ -80,6 +80,10 @@ void BMFordSSSP_t(const void* args)
     }
 }
 
+void Relax_t(const void* args)
+{
+
+}
 
 Result** BMFordAPSP(const Graph* graph)
 {
@@ -117,4 +121,20 @@ Result** BMFordAPSP_mt_a(const Graph* graph, int numthreads)
     pthread_mutex_destroy(&q_lock); pthread_mutex_destroy(&r_lock);
     free(args);
     return results;
+}
+
+Result** BMFordAPSP_mt_b(const Graph* graph, int numthreads)
+{
+    pthread_t* threads[numthreads];
+    Result** results = malloc(sizeof(Result*) * graph->size);
+
+    pthread_mutex_t r_lock; pthread_mutex_init(&r_lock, NULL); // result lock
+
+    int** m_dist = malloc(sizeof(int*) * graph->size);
+    for (int n = 0; n < graph->size; n++)
+    {
+        m_dist[n] = malloc(sizeof(int) * graph->size);
+    }
+
+
 }
