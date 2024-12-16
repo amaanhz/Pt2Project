@@ -4,10 +4,15 @@
 typedef struct BMF_b_args
 {
     const Graph* graph;
-    int start;
-    int end;
-
-
+    int** m_dist;
+    int* next_node;
+    int* iter;
+    Result** results;
+    pthread_mutex_t* r_lock;
+    pthread_mutex_t* q_lock;
+    pthread_mutex_t* i_lock;
+    pthread_mutex_t* v_locks;
+    pthread_barrier_t* barrier;
 } BMF_b_args;
 
 void relax(int u, const Node* v, int* dist, int* prev);
