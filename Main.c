@@ -60,12 +60,6 @@ int main(int argc, char* argv[]) {
 	printf("Runtime for Bellman-Ford_APSP (MT): %f\n", time_spent);
 
 
-
-	//printf("\n");
-	//printResult(d_results[14], 14, graph->size);
-	//printResult(b_results[14], 14, graph->size);
-
-
 	printf("Results for Dijkstra and BMFord are %s", resultsEq(d_results, b_results, graph->size) ? "equal" : "non-equal");
 
 
