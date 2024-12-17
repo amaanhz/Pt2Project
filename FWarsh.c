@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
-
+#include <pthread.h>
 #include "GraphParse.h"
 
 
@@ -102,7 +102,25 @@ Result** FWarsh(const Graph* graph)
     return results;
 }
 
+void do_blocks(void* args)
+{
 
+}
+
+Result** FWarsh_mt(const Graph* graph, int block_size, int numthreads)
+{
+    Result** results = malloc(sizeof(Result*) * graph->size);
+    int** m_dist = malloc(sizeof(int*) * graph->size);
+    int** m_prev = malloc(sizeof(int*) * graph->size);
+
+    m_dist_init(graph, m_dist, m_prev);
+
+
+
+    free(m_dist);
+    free(m_prev);
+    return results;
+}
 
 
 // I realised this is actually just Floyd-Warshall.....
