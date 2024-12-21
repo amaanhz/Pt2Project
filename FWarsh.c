@@ -135,8 +135,8 @@ void do_blocks(void* args)
     free(a);
 }
 
-FWarsh_args* construct_args(int nb, int r, int l, const int** d, const int** prev, int b1x, int b1y, int b2x, int b2y, int b3x,
-    int b3y)
+FWarsh_args* construct_args(int nb, int r, int l, const int** d, const int** prev, int b1x, int b1y, int b2x,
+    int b2y, int b3x, int b3y)
 {
     FWarsh_args* args = malloc(sizeof(FWarsh_args));
     *args = (const FWarsh_args){.block_length = l, .m_dist = d, .m_prev = prev, .B1x = b1x, .B1y = b1y,
@@ -148,8 +148,17 @@ FWarsh_args* construct_args(int nb, int r, int l, const int** d, const int** pre
     return args;
 }
 
+FWarsh_args_mt* construct_args_mt(int l, const int** d, const int** prev, pthread_mutex_t* dist_lock,
+    pthread_mutex_t* prev_lock, pthread_cond_t* dep_cond)
+{
+    FWarsh_args_mt* args = malloc(sizeof(FWarsh_args_mt));
+    *args = (const FWarsh_args_mt){.block_length = l, .m_dist = d, .m_prev = prev, .prev_lock = prev_lock,
+        .dist_lock = dist_lock, .dep_cond = dep_cond
+    };
+    return args;
+}
 
-Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads)
+Result** FWarsh_blocking(const Graph* graph, int block_length)
 {
     Result** results = malloc(sizeof(Result*) * graph->size);
     int** m_dist = malloc(sizeof(int*) * graph->size);
@@ -157,7 +166,7 @@ Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads)
 
 
     m_dist_init(graph, m_dist, m_prev);
-    int num_blocks = (graph->size + block_length - 1) / block_length; // increment for ceiling effect
+    int num_blocks = (graph->size + block_length - 1) / block_length; // ceiling the value
     int rem = graph->size % block_length;
     if (rem == 0) { rem = block_length; }
 
@@ -205,6 +214,73 @@ Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads)
         }
     }
 
+    free(m_dist);
+    free(m_prev);
+    return results;
+}
+
+work_pool* init_work_pool(int nblocks)
+{
+    work_pool* wp = malloc(sizeof(work_pool));
+    *wp = (const work_pool){.items = malloc(sizeof(block_triplet) * nblocks * nblocks),
+        .tail = 0};
+    return wp;
+}
+
+void mt_blocks(const void* args)
+{
+
+}
+
+Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads)
+{
+    pthread_t* threads[numthreads];
+    pthread_mutex_t dist_lock; pthread_mutex_init(&dist_lock, NULL);
+    pthread_mutex_t prev_lock; pthread_mutex_init(&prev_lock, NULL);
+
+    Result** results = malloc(sizeof(Result*) * graph->size);
+    int** m_dist = malloc(sizeof(int*) * graph->size);
+    int** m_prev = malloc(sizeof(int*) * graph->size);
+
+    m_dist_init(graph, m_dist, m_prev);
+    int num_blocks = (graph->size + block_length - 1) / block_length;
+    int rem = graph->size % block_length;
+    if (rem == 0) { rem = block_length; }
+
+    work_pool* wp = init_work_pool(num_blocks);
+    pthread_cond_t** dep_conds = malloc(sizeof(pthread_cond_t*) * num_blocks);
+    FWarsh_args_mt* args = malloc(sizeof(FWarsh_args_mt));
+    *args = (FWarsh_args_mt){ .block_length = block_length, .m_dist = m_dist, .m_prev = m_prev,
+        .dist_lock = &dist_lock, .prev_lock = &prev_lock, .wp = wp, .dep_conds = dep_conds
+    };
+
+    for (int t = 0; t < numthreads; t++)
+    {
+        pthread_create((pthread_t*)threads + t, NULL, mt_blocks, (void*) args);
+    }
+
+
+
+    for (int t = 0; t < numthreads; t++)
+    {
+        pthread_join(threads[t], NULL);
+    }
+
+
+    for (int u = 0; u < graph->size; u++)
+    {
+        results[u] = malloc(sizeof(Result));
+        results[u]->dist = malloc(sizeof(int) * graph->size);
+        results[u]->prev = malloc(sizeof(int) * graph->size);
+
+        for (int v = 0; v < graph->size; v++)
+        {
+            repath(u, v, results, m_dist, m_prev);
+        }
+    }
+
+    free(wp->items);
+    free(wp);
     free(m_dist);
     free(m_prev);
     return results;

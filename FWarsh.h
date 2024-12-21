@@ -1,5 +1,34 @@
 #pragma once
 #include "GraphParse.h"
+#include <pthread.h>
+
+typedef struct index
+{
+    int x;
+    int y;
+} index;
+
+typedef struct block_triplet
+{
+    index blocks[3];
+} block_triplet;
+
+typedef struct work_pool
+{
+    block_triplet** items;
+    int tail;
+} work_pool;
+
+typedef struct FWarsh_args_mt
+{
+    int block_length;
+    int** m_dist;
+    int** m_prev;
+    work_pool* wp;
+    pthread_mutex_t* dist_lock;
+    pthread_mutex_t* prev_lock;
+    pthread_cond_t** dep_conds;
+} FWarsh_args_mt;
 
 typedef struct FWarsh_args
 {
@@ -17,7 +46,12 @@ void m_dist_init(const Graph* graph, int** m_dist, int** m_prev);
 void repath(int u, int v, Result** results, const int** m_dist, const int** m_prev);
 Result** FWarsh(const Graph* graph);
 
-void do_blocks(void* args);
-FWarsh_args* construct_args(int g, int r, int l, const int** d, const int** prev, int b1x, int b1y, int b2x, int b2y,
+void do_blocks(const void* args);
+FWarsh_args* construct_args(int nb, int r, int l, const int** d, const int** prev, int b1x, int b1y, int b2x, int b2y,
     int b3x, int b3y);
+Result** FWarsh_blocking(const Graph* graph, int block_length);
+
+work_pool* init_work_pool(int nblocks);
+FWarsh_args_mt* construct_args_mt(int l, const int** d, const int** prev, pthread_mutex_t* dist_lock, pthread_mutex_t* prev_lock, pthread_cond_t* dep_cond);
+void mt_blocks(const void* args);
 Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads);
