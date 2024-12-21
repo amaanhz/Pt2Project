@@ -107,7 +107,6 @@ Result** FWarsh(const Graph* graph)
 void do_blocks(void* args)
 {
     FWarsh_args* a = (FWarsh_args*)args;
-    int n = a->nblocks - 1;
     int bl = a->block_length;
     int** dist = a->m_dist; int** prev = a->m_prev;
 
@@ -115,11 +114,11 @@ void do_blocks(void* args)
     int B2x = a->B2x * bl; int B2y = a->B2y * bl;
     int B3x = a->B3x * bl; int B3y = a->B3y * bl;
 
-    for (int k = 0; k < (a->B2y == n || a->B3x == n ? a->rem : bl); k++)
+    for (int k = 0; k < a->kmax; k++)
     {
-        for (int i = 0; i < (a->B1x == n || a->B2x == n ? a->rem : bl); i++)
+        for (int i = 0; i < a->imax; i++)
         {
-            for (int j = 0; j < (a->B1y == n || a->B3y == n ? a->rem : bl); j++)
+            for (int j = 0; j < a->jmax; j++)
             {
                 if (dist[B2x + i][B2y + k] != INT_MAX && dist[B3x + k][B3y + j] != INT_MAX)
                 {
@@ -140,8 +139,12 @@ FWarsh_args* construct_args(int nb, int r, int l, const int** d, const int** pre
     int b3y)
 {
     FWarsh_args* args = malloc(sizeof(FWarsh_args));
-    *args = (const FWarsh_args){.nblocks = nb, .rem = r, .block_length = l, .m_dist = d, .m_prev = prev, .B1x = b1x, .B1y = b1y,
+    *args = (const FWarsh_args){.block_length = l, .m_dist = d, .m_prev = prev, .B1x = b1x, .B1y = b1y,
         .B2x = b2x, .B2y = b2y, .B3x = b3x, .B3y = b3y,};
+    nb--;
+    args->kmax = b2y == nb || b3x == nb ? r : l; // limit at edges
+    args->imax = b1x == nb || b2x == nb ? r : l;
+    args->jmax = b1y == nb || b3y == nb ? r : l;
     return args;
 }
 

@@ -3,14 +3,13 @@
 
 typedef struct FWarsh_args
 {
-    int nblocks;
-    int rem;
     int block_length;
     int** m_dist;
     int** m_prev;
     int B1x; int B1y; // from
     int B2x; int B2y; // to
     int B3x; int B3y; // through
+    int kmax; int imax; int jmax;
 } FWarsh_args;
 
 void m_dist_init(const Graph* graph, int** m_dist, int** m_prev);
