@@ -107,17 +107,19 @@ Result** FWarsh(const Graph* graph)
 void do_blocks(void* args)
 {
     FWarsh_args* a = (FWarsh_args*)args;
-    int l = a->block_length;
+    int n = a->nblocks - 1;
+    int bl = a->block_length;
     int** dist = a->m_dist; int** prev = a->m_prev;
-    int B1x = a->B1x * l; int B1y = a->B1y * l;
-    int B2x = a->B2x * l; int B2y = a->B2y * l;
-    int B3x = a->B3x * l; int B3y = a->B3y * l;
 
-    for (int k = 0; k < l; k++)
+    int B1x = a->B1x * bl; int B1y = a->B1y * bl;
+    int B2x = a->B2x * bl; int B2y = a->B2y * bl;
+    int B3x = a->B3x * bl; int B3y = a->B3y * bl;
+
+    for (int k = 0; k < (a->B2y == n || a->B3x == n ? a->rem : bl); k++)
     {
-        for (int i = 0; i < l; i++)
+        for (int i = 0; i < (a->B1x == n || a->B2x == n ? a->rem : bl); i++)
         {
-            for (int j = 0; j < l; j++)
+            for (int j = 0; j < (a->B1y == n || a->B3y == n ? a->rem : bl); j++)
             {
                 if (dist[B2x + i][B2y + k] != INT_MAX && dist[B3x + k][B3y + j] != INT_MAX)
                 {
@@ -134,12 +136,12 @@ void do_blocks(void* args)
     free(a);
 }
 
-FWarsh_args* construct_args(int l, const int** d, const int** prev, int b1x, int b1y, int b2x, int b2y, int b3x,
+FWarsh_args* construct_args(int nb, int r, int l, const int** d, const int** prev, int b1x, int b1y, int b2x, int b2y, int b3x,
     int b3y)
 {
     FWarsh_args* args = malloc(sizeof(FWarsh_args));
-    *args = (const FWarsh_args){.block_length = l, .m_dist = d, .m_prev = prev,
-                                .B1x = b1x, .B1y = b1y, .B2x = b2x, .B2y = b2y, .B3x = b3x, .B3y = b3y};
+    *args = (const FWarsh_args){.nblocks = nb, .rem = r, .block_length = l, .m_dist = d, .m_prev = prev, .B1x = b1x, .B1y = b1y,
+        .B2x = b2x, .B2y = b2y, .B3x = b3x, .B3y = b3y,};
     return args;
 }
 
@@ -152,21 +154,23 @@ Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads)
 
 
     m_dist_init(graph, m_dist, m_prev);
-    int num_blocks = graph->size / block_length;
+    int num_blocks = (graph->size + 1) / block_length; // increment for ceiling effect
+    int rem = graph->size % block_length;
+
 
     for (int b = 0; b < num_blocks; b++)
     {
-        void* args = (void*)construct_args(block_length, m_dist, m_prev,
+        void* args = (void*)construct_args(num_blocks, rem, block_length, m_dist, m_prev,
             b, b, b, b, b, b); // Diagonal blocks
         do_blocks(args);
         for (int i = 0; i < num_blocks; i++)
         {
             // Horizontal and vertical blocks
-            args = (void*)construct_args(block_length, m_dist, m_prev,
+            args = (void*)construct_args(num_blocks, rem, block_length, m_dist, m_prev,
                 b, i, b, b, b, i);
             do_blocks(args);
 
-            args = (void*)construct_args(block_length, m_dist, m_prev,
+            args = (void*)construct_args(num_blocks, rem, block_length, m_dist, m_prev,
                 i, b, i, b, b, b);
             do_blocks(args);
         }
@@ -177,7 +181,7 @@ Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads)
             {
                 if (i != b && j != b)
                 {
-                    args = (void*)construct_args(block_length, m_dist, m_prev,
+                    args = (void*)construct_args(num_blocks, rem, block_length, m_dist, m_prev,
                         i, j, i, b, b, j);
                     do_blocks(args);
                 }
@@ -201,71 +205,3 @@ Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads)
     free(m_prev);
     return results;
 }
-
-
-// I realised this is actually just Floyd-Warshall.....
-
-
-/*
-    BMF_b_args* a = (BMF_b_args*) args;
-    const Graph* graph = a->graph; int** m_dist = a->m_dist;
-    Result** results = a->results;
-
-    pthread_mutex_t* q_lock = a->q_lock; pthread_mutex_t* i_lock = a->i_lock;
-    pthread_mutex_t* v_locks = a->v_locks;
-    // Synchronise iterations. Each dist depends on the last iteration's.
-    while (1)
-    {
-        // check if we've reached V iterations
-        pthread_mutex_lock(i_lock);
-        if (*a->iter == graph->size)
-        {
-            pthread_mutex_unlock(i_lock);
-            break;
-        }
-        pthread_mutex_unlock(i_lock);
-        ///////////////
-
-        // We haven't, lets get the next node to work on
-        pthread_mutex_lock(q_lock);
-        int src = *a->next_node;
-        if (src >= graph->size)
-        {
-            // End of iteration, need to increment iter number
-            // Need to make sure every node synchronises at this point though, and only one node makes changes
-            if (pthread_mutex_trylock(i_lock) == 0)
-            {
-                pthread_mutex_lock(q_lock);
-                *a->iter++;
-                *a->next_node = 0;
-                pthread_mutex_unlock(i_lock);
-                pthread_mutex_unlock(q_lock);
-            }
-            pthread_barrier_wait(a->barrier);
-            continue;
-        }
-        *a->next_node++;
-        pthread_mutex_unlock(q_lock);
-
-        Node* adj = graph->verts[src];
-        while (adj != NULL)
-        {
-            // Lock source and target
-            pthread_mutex_lock(v_locks + src);
-            pthread_mutex_lock(v_locks + adj->vertex);
-            int v = adj->vertex;
-
-            // Perform the relaxation
-            if (m_dist[src][v] != INT_MAX && m_dist[src][v] + adj->weight < m_dist[src][v])
-            {
-                m_dist[src][v] = m_dist[src][v] + adj->weight;
-            }
-
-            // Release locks
-            pthread_mutex_unlock(v_locks + src);
-            pthread_mutex_unlock(v_locks + adj->vertex);
-
-            adj = adj->next; // Continue for all adjacent nodes
-        }
-    }
- */

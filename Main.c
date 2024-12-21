@@ -63,7 +63,8 @@ int main(int argc, char* argv[]) {
 	Result** f_results = NULL;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	f_results = FWarsh_mt(graph, 1, 0);
+	//f_results = FWarsh_mt(graph);
+	f_results = FWarsh_mt(graph, 2, 0);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
 	time_spent = (end.tv_sec - start.tv_sec);
