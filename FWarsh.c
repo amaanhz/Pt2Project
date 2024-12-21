@@ -154,8 +154,9 @@ Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads)
 
 
     m_dist_init(graph, m_dist, m_prev);
-    int num_blocks = (graph->size + 1) / block_length; // increment for ceiling effect
+    int num_blocks = (graph->size + block_length - 1) / block_length; // increment for ceiling effect
     int rem = graph->size % block_length;
+    if (rem == 0) { rem = block_length; }
 
 
     for (int b = 0; b < num_blocks; b++)
