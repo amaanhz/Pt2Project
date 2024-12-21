@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
 	Result** f_results = NULL;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	f_results = FWarsh(graph);
+	f_results = FWarsh_mt(graph, 1, 0);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
 	time_spent = (end.tv_sec - start.tv_sec);
@@ -71,6 +71,7 @@ int main(int argc, char* argv[]) {
 	printf("Runtime for Floyd-Warshall (Seq): %f\n", time_spent);
 
 	printResults(f_results, graph->size);
+
 	/*
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	b_results = BMFordAPSP_mt_b(graph, 16);

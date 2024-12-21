@@ -3,18 +3,20 @@
 
 typedef struct FWarsh_args
 {
-    int block_size;
+    int block_length;
     int** m_dist;
     int** m_prev;
-    int B1x; int B1y;
-    int B2x; int B2y;
-    int B3x; int B3y;
+    int B1x; int B1y; // from
+    int B2x; int B2y; // to
+    int B3x; int B3y; // through
 } FWarsh_args;
 
-int** m_dist_init(const Graph* graph, int** m_dist, int** m_prev);
+void m_dist_init(const Graph* graph, int** m_dist, int** m_prev);
 
 void repath(int u, int v, Result** results, const int** m_dist, const int** m_prev);
 Result** FWarsh(const Graph* graph);
 
 void do_blocks(void* args);
-Result** FWarsh_mt(const Graph* graph, int numthreads);
+FWarsh_args* construct_args(int l, const int** d, const int** prev, int b1x, int b1y, int b2x, int b2y,
+    int b3x, int b3y);
+Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads);

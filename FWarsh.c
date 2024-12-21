@@ -1,3 +1,5 @@
+#include "FWarsh.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -104,18 +106,96 @@ Result** FWarsh(const Graph* graph)
 
 void do_blocks(void* args)
 {
+    FWarsh_args* a = (FWarsh_args*)args;
+    int l = a->block_length;
+    int** dist = a->m_dist; int** prev = a->m_prev;
+    int B1x = a->B1x * l; int B1y = a->B1y * l;
+    int B2x = a->B2x * l; int B2y = a->B2y * l;
+    int B3x = a->B3x * l; int B3y = a->B3y * l;
 
+    for (int k = 0; k < l; k++)
+    {
+        for (int i = 0; i < l; i++)
+        {
+            for (int j = 0; j < l; j++)
+            {
+                if (dist[B2x + i][B2y + k] != INT_MAX && dist[B3x + k][B3y + j] != INT_MAX)
+                {
+                    int t = dist[B2x + i][B2y + k] + dist[B3x + k][B3y + j];
+                    if (t < dist[B1x + i][B1y + j])
+                    {
+                        dist[B1x + i][B1y + j] = t;
+                        prev[B1x + i][B1y + j] = prev[B3x + k][B3y + j];
+                    }
+                }
+            }
+        }
+    }
+    free(a);
 }
 
-Result** FWarsh_mt(const Graph* graph, int block_size, int numthreads)
+FWarsh_args* construct_args(int l, const int** d, const int** prev, int b1x, int b1y, int b2x, int b2y, int b3x,
+    int b3y)
+{
+    FWarsh_args* args = malloc(sizeof(FWarsh_args));
+    *args = (const FWarsh_args){.block_length = l, .m_dist = d, .m_prev = prev,
+                                .B1x = b1x, .B1y = b1y, .B2x = b2x, .B2y = b2y, .B3x = b3x, .B3y = b3y};
+    return args;
+}
+
+
+Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads)
 {
     Result** results = malloc(sizeof(Result*) * graph->size);
     int** m_dist = malloc(sizeof(int*) * graph->size);
     int** m_prev = malloc(sizeof(int*) * graph->size);
 
+
     m_dist_init(graph, m_dist, m_prev);
+    int num_blocks = graph->size / block_length;
 
+    for (int b = 0; b < num_blocks; b++)
+    {
+        void* args = (void*)construct_args(block_length, m_dist, m_prev,
+            b, b, b, b, b, b); // Diagonal blocks
+        do_blocks(args);
+        for (int i = 0; i < num_blocks; i++)
+        {
+            // Horizontal and vertical blocks
+            args = (void*)construct_args(block_length, m_dist, m_prev,
+                b, i, b, b, b, i);
+            do_blocks(args);
 
+            args = (void*)construct_args(block_length, m_dist, m_prev,
+                i, b, i, b, b, b);
+            do_blocks(args);
+        }
+        // Peripheral blocks
+        for (int i = 0; i < num_blocks; i++)
+        {
+            for (int j = 0; j < num_blocks; j++)
+            {
+                if (i != b && j != b)
+                {
+                    args = (void*)construct_args(block_length, m_dist, m_prev,
+                        i, j, i, b, b, j);
+                    do_blocks(args);
+                }
+            }
+        }
+    }
+
+    for (int u = 0; u < graph->size; u++)
+    {
+        results[u] = malloc(sizeof(Result));
+        results[u]->dist = malloc(sizeof(int) * graph->size);
+        results[u]->prev = malloc(sizeof(int) * graph->size);
+
+        for (int v = 0; v < graph->size; v++)
+        {
+            repath(u, v, results, m_dist, m_prev);
+        }
+    }
 
     free(m_dist);
     free(m_prev);
