@@ -10,23 +10,33 @@ typedef struct index
 
 typedef struct block_triplet
 {
-    index blocks[3];
+    index* b1;
+    index* b2;
+    index* b3;
 } block_triplet;
 
-typedef struct work_pool
+typedef struct work_pool // circular queue
 {
     block_triplet** items;
+    int head;
     int tail;
+    int max;
+    int empty;
 } work_pool;
 
 typedef struct FWarsh_args_mt
 {
     int block_length;
+    int num_blocks;
+    int rem;
+    int* deps;
     int** m_dist;
     int** m_prev;
     work_pool* wp;
+    pthread_mutex_t* wp_lock;
     pthread_mutex_t* dist_lock;
     pthread_mutex_t* prev_lock;
+    pthread_mutex_t* dep_lock;
     pthread_cond_t** dep_conds;
 } FWarsh_args_mt;
 
@@ -51,7 +61,12 @@ FWarsh_args* construct_args(int nb, int r, int l, const int** d, const int** pre
     int b3x, int b3y);
 Result** FWarsh_blocking(const Graph* graph, int block_length);
 
+index* point(int x, int y);
 work_pool* init_work_pool(int nblocks);
-FWarsh_args_mt* construct_args_mt(int l, const int** d, const int** prev, pthread_mutex_t* dist_lock, pthread_mutex_t* prev_lock, pthread_cond_t* dep_cond);
-void mt_blocks(const void* args);
+void wp_insert(work_pool* wp, index* b1, index* b2, index* b3);
+void wp_insert(work_pool* wp, block_triplet* triplet);
+block_triplet* wp_pop(work_pool* wp);
+
+void mt_blocks(block_triplet* triplet, int bl, int** dist, int** prev, int kmax, int imax, int jmax);
+void FWarsh_t(const void* args);
 Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads);
