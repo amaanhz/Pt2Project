@@ -4,10 +4,8 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <pthread.h>
-#include <time.h>
 #include "GraphParse.h"
 
-struct timespec start, end;
 
 void m_dist_init(const Graph* graph, int** m_dist, int** m_prev)
 {
@@ -299,8 +297,7 @@ block_triplet* wp_pop(work_pool* wp)
     return NULL;
 }
 
-void mt_blocks(block_triplet* triplet, int bl, int** dist, int** prev, int kmax, int imax, int jmax,
-    pthread_mutex_t* dist_lock, pthread_mutex_t* prev_lock)
+void mt_blocks(block_triplet* triplet, int bl, int** dist, int** prev, int kmax, int imax, int jmax)
 {
     index* b1 = triplet->b1; index* b2 = triplet->b2; index* b3 = triplet->b3;
 
@@ -314,19 +311,15 @@ void mt_blocks(block_triplet* triplet, int bl, int** dist, int** prev, int kmax,
         {
             for (int j = 0; j < jmax; j++)
             {
-                //pthread_mutex_lock(dist_lock);
                 if (dist[B2x + i][B2y + k] != INT_MAX && dist[B3x + k][B3y + j] != INT_MAX)
                 {
                     int t = dist[B2x + i][B2y + k] + dist[B3x + k][B3y + j];
                     if (t < dist[B1x + i][B1y + j])
                     {
                         dist[B1x + i][B1y + j] = t;
-                        //pthread_mutex_lock(prev_lock);
                         prev[B1x + i][B1y + j] = prev[B3x + k][B3y + j];
-                        //pthread_mutex_unlock(prev_lock);
                     }
                 }
-                //pthread_mutex_unlock(dist_lock);
             }
         }
     }
@@ -338,7 +331,6 @@ void FWarsh_t(const void* args)
     FWarsh_args_mt* a = (FWarsh_args_mt*)args;
     int nb = a->num_blocks; int l = a->block_length; int r = a->rem; int* deps = a->deps;
     int** dist = a->m_dist; int** prev = a->m_prev; work_pool* wp = a->wp; pthread_mutex_t* wp_lock = a->wp_lock;
-    pthread_mutex_t* dist_lock = a->dist_lock; pthread_mutex_t* prev_lock = a->prev_lock;
     pthread_mutex_t* dep_locks = a->dep_locks; pthread_cond_t* dep_conds = a->dep_conds;
 
     int total_blocks = nb * nb;
@@ -362,7 +354,6 @@ void FWarsh_t(const void* args)
             // Dependent
             if (b1->x == b1->y && b1->x == b2->x && b1->x == b3->x)
             {
-                clock_gettime(CLOCK_MONOTONIC, &start);
                 if (b1->x > 0) // need to check that the last phase completed before doing this one
                 {
                     pthread_mutex_lock(&dep_locks[b1->x - 1]);
@@ -379,12 +370,8 @@ void FWarsh_t(const void* args)
                         }
                     }
                 }
-                clock_gettime(CLOCK_MONOTONIC, &end);
-                double time_spent = (end.tv_sec - start.tv_sec);
-                time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-                printf("Took %f seconds waiting at a dependent block (%d, %d)\n", time_spent, b1->x, b1->y);
 
-                mt_blocks(blocks, l, dist, prev, kmax, imax, jmax, dist_lock, prev_lock);
+                mt_blocks(blocks, l, dist, prev, kmax, imax, jmax);
 
                 pthread_mutex_lock(&dep_locks[b1->x]);
                 deps[b1->x]++;
@@ -396,7 +383,6 @@ void FWarsh_t(const void* args)
             // Partially Dependent
             else if (b2->x == b2->y || b3->x == b3->y)
             {
-                clock_gettime(CLOCK_MONOTONIC, &start);
                 index* diag = b2->x == b2->y ? b2 : b3; // find out which dep block this relates to
                 pthread_mutex_lock(&dep_locks[diag->x]);
                 if (deps[diag->x] == 0) // Dependent block hasn't been calculated yet
@@ -408,13 +394,8 @@ void FWarsh_t(const void* args)
                     }
                 }
                 pthread_mutex_unlock(&dep_locks[diag->x]);
-                clock_gettime(CLOCK_MONOTONIC, &end);
-                double time_spent = (end.tv_sec - start.tv_sec);
-                time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-                printf("Took %f seconds waiting at a partially dependent block: (%d, %d) for diag (%d, %d)\n", time_spent,
-                    b1->x, b1->y, diag->x, diag->y);
 
-                mt_blocks(blocks, l, dist, prev, kmax, imax, jmax, dist_lock, prev_lock);
+                mt_blocks(blocks, l, dist, prev, kmax, imax, jmax);
 
                 pthread_mutex_lock(&dep_locks[diag->x]);
                 deps[diag->x]++;
@@ -428,7 +409,6 @@ void FWarsh_t(const void* args)
             {
 
                 index* diag = point(b2->y, b2->y);
-                clock_gettime(CLOCK_MONOTONIC, &start);
                 pthread_mutex_lock(&dep_locks[diag->x]);
                 if (deps[diag->x] < nb * 2 - 1) // Partially dependent hasn't finished yet
                 {
@@ -439,13 +419,8 @@ void FWarsh_t(const void* args)
                     }
                 }
                 pthread_mutex_unlock(&dep_locks[diag->x]);
-                clock_gettime(CLOCK_MONOTONIC, &end);
-                double time_spent = (end.tv_sec - start.tv_sec);
-                time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-                printf("Took %f seconds waiting at an independent block: (%d, %d) for diag (%d, %d)\n", time_spent, b1->x,
-                    b1->y, diag->x, diag->y);
 
-                mt_blocks(blocks, l, dist, prev, kmax, imax, jmax, dist_lock, prev_lock);
+                mt_blocks(blocks, l, dist, prev, kmax, imax, jmax);
 
                 pthread_mutex_lock(&dep_locks[diag->x]);
                 deps[diag->x]++;
@@ -500,8 +475,7 @@ Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads)
     work_pool* wp = init_work_pool(num_blocks);
     FWarsh_args_mt* args = malloc(sizeof(FWarsh_args_mt));
     *args = (const FWarsh_args_mt){ .block_length = block_length, .num_blocks = num_blocks, .rem = rem, .deps = deps,
-        .m_dist = m_dist, .m_prev = m_prev, .wp_lock = &wp_lock, .dist_lock = &dist_lock, .prev_lock = &prev_lock,
-        .wp = wp, .dep_locks = dep_locks, .dep_conds = conds
+        .m_dist = m_dist, .m_prev = m_prev, .wp_lock = &wp_lock, .wp = wp, .dep_locks = dep_locks, .dep_conds = conds
     };
 
     for (int t = 0; t < numthreads; t++)

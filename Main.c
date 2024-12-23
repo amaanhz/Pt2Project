@@ -8,7 +8,7 @@
 #include "FWarsh.h"
 
 int main(int argc, char* argv[]) {
-	Graph* graph = fileparse("graphs/USairport500");
+	Graph* graph = fileparse("graphs/USairport_2010");
 	//printGraph(graph);
 	//printf("Running DijkstraSSSP:\n");
 
@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
 	Result** b_results = NULL;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	b_results = BMFordAPSP(graph);
+	//b_results = BMFordAPSP(graph);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
 	time_spent = (end.tv_sec - start.tv_sec);

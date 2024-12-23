@@ -34,8 +34,6 @@ typedef struct FWarsh_args_mt
     int** m_prev;
     work_pool* wp;
     pthread_mutex_t* wp_lock;
-    pthread_mutex_t* dist_lock;
-    pthread_mutex_t* prev_lock;
     pthread_mutex_t* dep_locks;
     pthread_cond_t* dep_conds;
 } FWarsh_args_mt;
@@ -67,7 +65,6 @@ void wp_insert(work_pool* wp, index* b1, index* b2, index* b3);
 void wp_insert_trip(work_pool* wp, block_triplet* triplet);
 block_triplet* wp_pop(work_pool* wp);
 
-void mt_blocks(block_triplet* triplet, int bl, int** dist, int** prev, int kmax, int imax, int jmax,
-    pthread_mutex_t* dist_lock, pthread_mutex_t* prev_lock);
+void mt_blocks(block_triplet* triplet, int bl, int** dist, int** prev, int kmax, int imax, int jmax);
 void FWarsh_t(const void* args);
 Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads);
