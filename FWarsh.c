@@ -4,8 +4,10 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <pthread.h>
+#include <time.h>
 #include "GraphParse.h"
 
+struct timespec start, end;
 
 void m_dist_init(const Graph* graph, int** m_dist, int** m_prev)
 {
@@ -312,19 +314,19 @@ void mt_blocks(block_triplet* triplet, int bl, int** dist, int** prev, int kmax,
         {
             for (int j = 0; j < jmax; j++)
             {
-                pthread_mutex_lock(dist_lock);
+                //pthread_mutex_lock(dist_lock);
                 if (dist[B2x + i][B2y + k] != INT_MAX && dist[B3x + k][B3y + j] != INT_MAX)
                 {
                     int t = dist[B2x + i][B2y + k] + dist[B3x + k][B3y + j];
                     if (t < dist[B1x + i][B1y + j])
                     {
                         dist[B1x + i][B1y + j] = t;
-                        pthread_mutex_lock(prev_lock);
+                        //pthread_mutex_lock(prev_lock);
                         prev[B1x + i][B1y + j] = prev[B3x + k][B3y + j];
-                        pthread_mutex_unlock(prev_lock);
+                        //pthread_mutex_unlock(prev_lock);
                     }
                 }
-                pthread_mutex_unlock(dist_lock);
+                //pthread_mutex_unlock(dist_lock);
             }
         }
     }
@@ -348,8 +350,9 @@ void FWarsh_t(const void* args)
         pthread_mutex_lock(wp_lock);
         if (!wp->empty)
         {
-            blocks = wp_pop(wp); index* b1 = blocks->b1; index* b2 = blocks->b2; index* b3 = blocks->b3;
+            blocks = wp_pop(wp);
             pthread_mutex_unlock(wp_lock);
+            index* b1 = blocks->b1; index* b2 = blocks->b2; index* b3 = blocks->b3;
 
             int kmax = b2->y == nb - 1 || b3->x == nb - 1 ? r : l; // limit at edges
             int imax = b1->x == nb - 1 || b2->x == nb - 1 ? r : l;
@@ -359,6 +362,7 @@ void FWarsh_t(const void* args)
             // Dependent
             if (b1->x == b1->y && b1->x == b2->x && b1->x == b3->x)
             {
+                clock_gettime(CLOCK_MONOTONIC, &start);
                 if (b1->x > 0) // need to check that the last phase completed before doing this one
                 {
                     pthread_mutex_lock(&dep_locks[b1->x - 1]);
@@ -375,6 +379,10 @@ void FWarsh_t(const void* args)
                         }
                     }
                 }
+                clock_gettime(CLOCK_MONOTONIC, &end);
+                double time_spent = (end.tv_sec - start.tv_sec);
+                time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+                printf("Took %f seconds waiting at a dependent block (%d, %d)\n", time_spent, b1->x, b1->y);
 
                 mt_blocks(blocks, l, dist, prev, kmax, imax, jmax, dist_lock, prev_lock);
 
@@ -388,6 +396,7 @@ void FWarsh_t(const void* args)
             // Partially Dependent
             else if (b2->x == b2->y || b3->x == b3->y)
             {
+                clock_gettime(CLOCK_MONOTONIC, &start);
                 index* diag = b2->x == b2->y ? b2 : b3; // find out which dep block this relates to
                 pthread_mutex_lock(&dep_locks[diag->x]);
                 if (deps[diag->x] == 0) // Dependent block hasn't been calculated yet
@@ -399,6 +408,12 @@ void FWarsh_t(const void* args)
                     }
                 }
                 pthread_mutex_unlock(&dep_locks[diag->x]);
+                clock_gettime(CLOCK_MONOTONIC, &end);
+                double time_spent = (end.tv_sec - start.tv_sec);
+                time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+                printf("Took %f seconds waiting at a partially dependent block: (%d, %d) for diag (%d, %d)\n", time_spent,
+                    b1->x, b1->y, diag->x, diag->y);
+
                 mt_blocks(blocks, l, dist, prev, kmax, imax, jmax, dist_lock, prev_lock);
 
                 pthread_mutex_lock(&dep_locks[diag->x]);
@@ -406,11 +421,14 @@ void FWarsh_t(const void* args)
                 pthread_mutex_unlock(&dep_locks[diag->x]);
 
                 pthread_cond_broadcast(&dep_conds[diag->x]); // Inform any independents the value has changed
+
             }
 
             else
             {
+
                 index* diag = point(b2->y, b2->y);
+                clock_gettime(CLOCK_MONOTONIC, &start);
                 pthread_mutex_lock(&dep_locks[diag->x]);
                 if (deps[diag->x] < nb * 2 - 1) // Partially dependent hasn't finished yet
                 {
@@ -421,11 +439,17 @@ void FWarsh_t(const void* args)
                     }
                 }
                 pthread_mutex_unlock(&dep_locks[diag->x]);
+                clock_gettime(CLOCK_MONOTONIC, &end);
+                double time_spent = (end.tv_sec - start.tv_sec);
+                time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+                printf("Took %f seconds waiting at an independent block: (%d, %d) for diag (%d, %d)\n", time_spent, b1->x,
+                    b1->y, diag->x, diag->y);
 
                 mt_blocks(blocks, l, dist, prev, kmax, imax, jmax, dist_lock, prev_lock);
 
                 pthread_mutex_lock(&dep_locks[diag->x]);
                 deps[diag->x]++;
+                int t = deps[diag->x] == total_blocks;
                 pthread_mutex_unlock(&dep_locks[diag->x]);
 
                 pthread_cond_broadcast(&dep_conds[diag->x]);
