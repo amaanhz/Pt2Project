@@ -104,7 +104,7 @@ Result** FWarsh(const Graph* graph)
     return results;
 }
 
-void do_blocks(void* args)
+void do_blocks(const void* args)
 {
     FWarsh_args* a = (FWarsh_args*)args;
     int bl = a->block_length;
@@ -212,15 +212,15 @@ Result** FWarsh_blocking(const Graph* graph, int block_length)
 index* point(int x, int y)
 {
     index* p = malloc(sizeof(index));
-    *p = (const index){ .x = x, .y = x};
+    *p = (const index){ .x = x, .y = y};
     return p;
 }
 
 work_pool* init_work_pool(int nblocks)
 {
     work_pool* wp = malloc(sizeof(work_pool));
-    *wp = (const work_pool){.items = malloc(sizeof(block_triplet) * nblocks * nblocks),
-        .head = 0, .tail = 0, .max = nblocks * nblocks, .empty = 1};
+    *wp = (const work_pool){.items = malloc(sizeof(block_triplet) * nblocks * nblocks * nblocks),
+        .head = 0, .tail = 0, .max = nblocks * nblocks * nblocks, .empty = 1};
 
     // We already know what will be in the queue
     for (int i = 0; i < nblocks; i++)
@@ -267,46 +267,68 @@ void wp_insert(work_pool* wp, index* b1, index* b2, index* b3)
 {
     block_triplet* triplet = malloc(sizeof(block_triplet));
     *triplet = (block_triplet){.b1 = b1, .b2 = b2, .b3 = b3};
-    wp_insert(wp, triplet);
+    wp_insert_trip(wp, triplet);
 }
 
-void wp_insert(work_pool* wp, block_triplet* triplet)
+void wp_insert_trip(work_pool* wp, block_triplet* triplet)
 {
-    wp->items[wp->tail] = triplet;
-    if (wp->tail == wp->max - 1)
+    if (wp->tail < wp->max)
     {
-        if (wp->head > 0)
-        {
-            wp->tail = 0;
-        }
-        else
-        {
-            printf("Queue is full!\n");
-        }
+        wp->items[wp->tail] = triplet;
+        wp->tail++;
     }
     else
     {
-        wp->tail++;
+        printf("Queue is full!\n");
     }
     wp->empty = 0;
 }
 
 block_triplet* wp_pop(work_pool* wp)
 {
-    block_triplet* item = wp->items[wp->head];
-    if (wp->head == wp->max - 1)
+    if (wp->tail != wp->head)
     {
-        wp->head = 0;
-    }
-    else
-    {
+        block_triplet* item = wp->items[wp->head];
         wp->head++;
+        if (wp->head == wp->tail) { wp->empty = 1; }
+        return item;
     }
-    if (wp->head == wp->tail) { wp->empty = 1; }
-
-    return item;
+    printf("Queue is empty!\n");
+    return NULL;
 }
 
+void mt_blocks(block_triplet* triplet, int bl, int** dist, int** prev, int kmax, int imax, int jmax,
+    pthread_mutex_t* dist_lock, pthread_mutex_t* prev_lock)
+{
+    index* b1 = triplet->b1; index* b2 = triplet->b2; index* b3 = triplet->b3;
+
+    int B1x = b1->x * bl; int B1y = b1->y * bl;
+    int B2x = b2->x * bl; int B2y = b2->y * bl;
+    int B3x = b3->x * bl; int B3y = b3->y * bl;
+
+    for (int k = 0; k < kmax; k++)
+    {
+        for (int i = 0; i < imax; i++)
+        {
+            for (int j = 0; j < jmax; j++)
+            {
+                pthread_mutex_lock(dist_lock);
+                if (dist[B2x + i][B2y + k] != INT_MAX && dist[B3x + k][B3y + j] != INT_MAX)
+                {
+                    int t = dist[B2x + i][B2y + k] + dist[B3x + k][B3y + j];
+                    if (t < dist[B1x + i][B1y + j])
+                    {
+                        dist[B1x + i][B1y + j] = t;
+                        pthread_mutex_lock(prev_lock);
+                        prev[B1x + i][B1y + j] = prev[B3x + k][B3y + j];
+                        pthread_mutex_unlock(prev_lock);
+                    }
+                }
+                pthread_mutex_unlock(dist_lock);
+            }
+        }
+    }
+}
 
 
 void FWarsh_t(const void* args)
@@ -315,7 +337,9 @@ void FWarsh_t(const void* args)
     int nb = a->num_blocks; int l = a->block_length; int r = a->rem; int* deps = a->deps;
     int** dist = a->m_dist; int** prev = a->m_prev; work_pool* wp = a->wp; pthread_mutex_t* wp_lock = a->wp_lock;
     pthread_mutex_t* dist_lock = a->dist_lock; pthread_mutex_t* prev_lock = a->prev_lock;
-    pthread_mutex_t* dep_lock = a->dep_lock; pthread_cond_t** dep_conds = a->dep_conds;
+    pthread_mutex_t** dep_locks = a->dep_locks; pthread_cond_t** dep_conds = a->dep_conds;
+
+    int total_blocks = nb * nb;
 
     block_triplet* blocks;
     while (1)
@@ -327,17 +351,37 @@ void FWarsh_t(const void* args)
             blocks = wp_pop(wp); index* b1 = blocks->b1; index* b2 = blocks->b2; index* b3 = blocks->b3;
             pthread_mutex_unlock(wp_lock);
 
-            int kmax = b2->y == nb || b3->x == nb ? r : l; // limit at edges
-            int imax = b1->x == nb || b2->x == nb ? r : l;
-            int jmax = b1->y == nb || b3->y == nb ? r : l;
+            int kmax = b2->y == nb - 1 || b3->x == nb - 1 ? r : l; // limit at edges
+            int imax = b1->x == nb - 1 || b2->x == nb - 1 ? r : l;
+            int jmax = b1->y == nb - 1 || b3->y == nb - 1 ? r : l;
+
 
             // Dependent
-            if (b1->x == b1->y)
+            if (b1->x == b1->y && b1->x == b2->x && b1->x == b3->x)
             {
-                pthread_mutex_lock(dep_lock);
-                mt_blocks(blocks, l, dist, prev, kmax, imax, jmax);
+                if (b1->x > 0) // need to check that the last phase completed before doing this one
+                {
+                    pthread_mutex_lock(dep_locks[b1->x - 1]);
+                    if (deps[b1->x - 1] < total_blocks)
+                    {
+                        while (1)
+                        {
+                            pthread_cond_wait(dep_conds[b1->x - 1], dep_locks[b1->x - 1]);
+                            if (deps[b1->x - 1] == total_blocks)
+                            {
+                                pthread_mutex_unlock(dep_locks[b1->x - 1]);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                mt_blocks(blocks, l, dist, prev, kmax, imax, jmax, dist_lock, prev_lock);
+
+                pthread_mutex_lock(dep_locks[b1->x]);
                 deps[b1->x]++;
-                pthread_mutex_unlock(dep_lock);
+                pthread_mutex_unlock(dep_locks[b1->x]);
+
                 pthread_cond_broadcast(dep_conds[b1->x]);
             }
 
@@ -345,21 +389,56 @@ void FWarsh_t(const void* args)
             else if (b2->x == b2->y || b3->x == b3->y)
             {
                 index* diag = b2->x == b2->y ? b2 : b3; // find out which dep block this relates to
-                pthread_mutex_lock(dep_lock);
-                if (deps[diag->x] == 0)
+                pthread_mutex_lock(dep_locks[diag->x]);
+                if (deps[diag->x] == 0) // Dependent block hasn't been calculated yet
                 {
-                   pthread_cond_wait(dep_conds[diag->x], dep_lock);
+                    while (1)
+                    {
+                        pthread_cond_wait(dep_conds[diag->x], dep_locks[diag->x]);
+                        if (deps[diag->x] > 0) { break; }
+                    }
                 }
-                pthread_mutex_unlock(dep_lock);
+                pthread_mutex_unlock(dep_locks[diag->x]);
+                mt_blocks(blocks, l, dist, prev, kmax, imax, jmax, dist_lock, prev_lock);
 
+                pthread_mutex_lock(dep_locks[diag->x]);
+                deps[diag->x]++;
+                pthread_mutex_unlock(dep_locks[diag->x]);
+
+                pthread_cond_broadcast(dep_conds[diag->x]); // Inform any independents the value has changed
             }
 
+            else
+            {
+                index* diag = point(b2->y, b2->y);
+                pthread_mutex_lock(dep_locks[diag->x]);
+                if (deps[diag->x] < nb * 2 - 1) // Partially dependent hasn't finished yet
+                {
+                    while (1)
+                    {
+                        pthread_cond_wait(dep_conds[diag->x], dep_locks[diag->x]);
+                        if (deps[diag->x] >= nb * 2 - 1) { break; }
+                    }
+                }
+                pthread_mutex_unlock(dep_locks[diag->x]);
+
+                mt_blocks(blocks, l, dist, prev, kmax, imax, jmax, dist_lock, prev_lock);
+
+                pthread_mutex_lock(dep_locks[diag->x]);
+                deps[diag->x]++;
+                pthread_mutex_unlock(dep_locks[diag->x]);
+
+                pthread_cond_broadcast(dep_conds[diag->x]);
+                free(diag);
+            }
         }
         else
         {
+            pthread_mutex_unlock(wp_lock);
             break;
         }
     }
+    pthread_exit(NULL);
 }
 
 Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads)
@@ -368,7 +447,6 @@ Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads)
     pthread_mutex_t wp_lock; pthread_mutex_init(&wp_lock, NULL);
     pthread_mutex_t dist_lock; pthread_mutex_init(&dist_lock, NULL);
     pthread_mutex_t prev_lock; pthread_mutex_init(&prev_lock, NULL);
-    pthread_mutex_t dep_lock; pthread_mutex_init(&dep_lock, NULL);
 
 
 
@@ -382,20 +460,24 @@ Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads)
     if (rem == 0) { rem = block_length; }
 
     int* deps = malloc(sizeof(int) * num_blocks); // diagonal length = side length
+    pthread_mutex_t* dep_locks = malloc(sizeof(pthread_mutex_t) * num_blocks);
+
     // for each dep block [i, i], dep[i] == 1 when dep is done, then dep[i] == nblocks * 2 - 1 when
     // partially dependent blocks done
 
-    pthread_cond_t** conds = malloc(sizeof(pthread_cond_t*) * num_blocks); // For signalling in niche cases
+    pthread_cond_t* conds = malloc(sizeof(pthread_cond_t) * num_blocks);
     for (int i = 0; i < num_blocks; i++)
     {
-        pthread_cond_init((pthread_cond_t*)(conds + i), NULL);
+        deps[i] = 0;
+        pthread_cond_init(conds + i, NULL);
+        pthread_mutex_init(dep_locks + i, NULL);
     }
 
     work_pool* wp = init_work_pool(num_blocks);
     FWarsh_args_mt* args = malloc(sizeof(FWarsh_args_mt));
-    *args = (FWarsh_args_mt){ .block_length = block_length, .num_blocks = num_blocks, .rem = rem, .deps = deps,
+    *args = (const FWarsh_args_mt){ .block_length = block_length, .num_blocks = num_blocks, .rem = rem, .deps = deps,
         .m_dist = m_dist, .m_prev = m_prev, .wp_lock = &wp_lock, .dist_lock = &dist_lock, .prev_lock = &prev_lock,
-        .wp = wp, .dep_lock = &dep_lock, .dep_conds = conds
+        .wp = wp, .dep_locks = &dep_locks, .dep_conds = &conds
     };
 
     for (int t = 0; t < numthreads; t++)

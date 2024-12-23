@@ -64,7 +64,7 @@ int main(int argc, char* argv[]) {
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	//f_results = FWarsh_mt(graph);
-	f_results = FWarsh_blocking(graph, 4);
+	f_results = FWarsh_blocking(graph, 10);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
 	time_spent = (end.tv_sec - start.tv_sec);
@@ -72,15 +72,14 @@ int main(int argc, char* argv[]) {
 	printf("Runtime for Floyd-Warshall (Seq): %f\n", time_spent);
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	//f_results = FWarsh_mt(graph);
-	f_results = FWarsh_mt(graph, 4, 0);
+	f_results = FWarsh_mt(graph, 4, 16);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
 	time_spent = (end.tv_sec - start.tv_sec);
 	time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-	printf("Runtime for Floyd-Warshall (Seq): %f\n", time_spent);
+	printf("Runtime for Floyd-Warshall (MT): %f\n", time_spent);
 
-	//printResults(f_results, graph->size);
+	printResults(f_results, graph->size);
 
 	/*
 	clock_gettime(CLOCK_MONOTONIC, &start);

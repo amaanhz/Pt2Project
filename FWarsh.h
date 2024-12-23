@@ -15,7 +15,7 @@ typedef struct block_triplet
     index* b3;
 } block_triplet;
 
-typedef struct work_pool // circular queue
+typedef struct work_pool // This doesn't need to be a circular queue...
 {
     block_triplet** items;
     int head;
@@ -36,7 +36,7 @@ typedef struct FWarsh_args_mt
     pthread_mutex_t* wp_lock;
     pthread_mutex_t* dist_lock;
     pthread_mutex_t* prev_lock;
-    pthread_mutex_t* dep_lock;
+    pthread_mutex_t** dep_locks;
     pthread_cond_t** dep_conds;
 } FWarsh_args_mt;
 
@@ -64,9 +64,10 @@ Result** FWarsh_blocking(const Graph* graph, int block_length);
 index* point(int x, int y);
 work_pool* init_work_pool(int nblocks);
 void wp_insert(work_pool* wp, index* b1, index* b2, index* b3);
-void wp_insert(work_pool* wp, block_triplet* triplet);
+void wp_insert_trip(work_pool* wp, block_triplet* triplet);
 block_triplet* wp_pop(work_pool* wp);
 
-void mt_blocks(block_triplet* triplet, int bl, int** dist, int** prev, int kmax, int imax, int jmax);
+void mt_blocks(block_triplet* triplet, int bl, int** dist, int** prev, int kmax, int imax, int jmax,
+    pthread_mutex_t* dist_lock, pthread_mutex_t* prev_lock);
 void FWarsh_t(const void* args);
 Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads);
