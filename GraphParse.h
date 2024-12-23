@@ -25,9 +25,21 @@ typedef struct MultiSSSPArgs {
 	Result** results;
 } MultiSSSPArgs;
 
+typedef struct Queue {
+	int max;
+	int tail;
+	int* items;
+} Queue;
+
+
+void enq(Queue* q, int item);
+int dqmin(Queue* q, const int* dist);
+int dq(Queue* q);
+
 int neighbour(const Graph* graph, int u, int v);
 void addEdge(const Graph* graph, int i, int j, int w);
 Graph* fileparse(const char* file);
+
 
 
 void printGraph(const Graph* graph);
