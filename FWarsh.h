@@ -36,8 +36,8 @@ typedef struct FWarsh_args_mt
     pthread_mutex_t* wp_lock;
     pthread_mutex_t* dist_lock;
     pthread_mutex_t* prev_lock;
-    pthread_mutex_t** dep_locks;
-    pthread_cond_t** dep_conds;
+    pthread_mutex_t* dep_locks;
+    pthread_cond_t* dep_conds;
 } FWarsh_args_mt;
 
 typedef struct FWarsh_args

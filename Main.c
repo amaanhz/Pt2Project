@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
 	struct timespec start, end;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	DijkstraAPSP(graph);
+	//DijkstraAPSP(graph);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
 	double time_spent = (end.tv_sec - start.tv_sec);
@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
 	printf("Runtime for Bellman-Ford_APSP (Seq): %f\n", time_spent);*/
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	b_results = BMFordAPSP_mt_a(graph, 16);
+	//b_results = BMFordAPSP_mt_a(graph, 16);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
 	time_spent = (end.tv_sec - start.tv_sec);
@@ -63,23 +63,30 @@ int main(int argc, char* argv[]) {
 	Result** f_results = NULL;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	//f_results = FWarsh_mt(graph);
+	f_results = FWarsh(graph);
+	clock_gettime(CLOCK_MONOTONIC, &end);
+
+	time_spent = (end.tv_sec - start.tv_sec);
+	time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+	printf("Runtime for Floyd-Warshall (Seq: Non-Blocking): %f\n", time_spent);
+
+	clock_gettime(CLOCK_MONOTONIC, &start);
 	f_results = FWarsh_blocking(graph, 10);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
 	time_spent = (end.tv_sec - start.tv_sec);
 	time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-	printf("Runtime for Floyd-Warshall (Seq): %f\n", time_spent);
+	printf("Runtime for Floyd-Warshall (Seq: Blocking): %f\n", time_spent);
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	f_results = FWarsh_mt(graph, 4, 16);
+	f_results = FWarsh_mt(graph, 10, 16);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
 	time_spent = (end.tv_sec - start.tv_sec);
 	time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
 	printf("Runtime for Floyd-Warshall (MT): %f\n", time_spent);
 
-	printResults(f_results, graph->size);
+	//printResults(f_results, graph->size);
 
 	/*
 	clock_gettime(CLOCK_MONOTONIC, &start);
@@ -93,15 +100,15 @@ int main(int argc, char* argv[]) {
 
 	printf("\n");
 
-	printf("Results for Dijkstra and BMFord are %s\n", resultsEq(d_results, b_results, graph->size) ? "equal" : "non-equal");
+	//printf("Results for Dijkstra and BMFord are %s\n", resultsEq(d_results, b_results, graph->size) ? "equal" : "non-equal");
 	printf("Results for Dijkstra and FW are %s\n", resultsEq(d_results, f_results, graph->size) ? "equal" : "non-equal");
-	printf("Results for BMFord and FW are %s\n", resultsEq(b_results, f_results, graph->size) ? "equal" : "non-equal");
+	//printf("Results for BMFord and FW are %s\n", resultsEq(b_results, f_results, graph->size) ? "equal" : "non-equal");
 
 	///////////////
 
 	// Freeing Memory so compiler stops shouting //
 
-	freeResults(b_results, graph->size);
+	//freeResults(b_results, graph->size);
 	freeResults(d_results, graph->size);
 	freeResults(f_results, graph->size);
 	freeGraph(graph);

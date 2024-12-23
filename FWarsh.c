@@ -337,7 +337,7 @@ void FWarsh_t(const void* args)
     int nb = a->num_blocks; int l = a->block_length; int r = a->rem; int* deps = a->deps;
     int** dist = a->m_dist; int** prev = a->m_prev; work_pool* wp = a->wp; pthread_mutex_t* wp_lock = a->wp_lock;
     pthread_mutex_t* dist_lock = a->dist_lock; pthread_mutex_t* prev_lock = a->prev_lock;
-    pthread_mutex_t** dep_locks = a->dep_locks; pthread_cond_t** dep_conds = a->dep_conds;
+    pthread_mutex_t* dep_locks = a->dep_locks; pthread_cond_t* dep_conds = a->dep_conds;
 
     int total_blocks = nb * nb;
 
@@ -361,15 +361,15 @@ void FWarsh_t(const void* args)
             {
                 if (b1->x > 0) // need to check that the last phase completed before doing this one
                 {
-                    pthread_mutex_lock(dep_locks[b1->x - 1]);
+                    pthread_mutex_lock(&dep_locks[b1->x - 1]);
                     if (deps[b1->x - 1] < total_blocks)
                     {
                         while (1)
                         {
-                            pthread_cond_wait(dep_conds[b1->x - 1], dep_locks[b1->x - 1]);
+                            pthread_cond_wait(&dep_conds[b1->x - 1], &dep_locks[b1->x - 1]);
                             if (deps[b1->x - 1] == total_blocks)
                             {
-                                pthread_mutex_unlock(dep_locks[b1->x - 1]);
+                                pthread_mutex_unlock(&dep_locks[b1->x - 1]);
                                 break;
                             }
                         }
@@ -378,57 +378,57 @@ void FWarsh_t(const void* args)
 
                 mt_blocks(blocks, l, dist, prev, kmax, imax, jmax, dist_lock, prev_lock);
 
-                pthread_mutex_lock(dep_locks[b1->x]);
+                pthread_mutex_lock(&dep_locks[b1->x]);
                 deps[b1->x]++;
-                pthread_mutex_unlock(dep_locks[b1->x]);
+                pthread_mutex_unlock(&dep_locks[b1->x]);
 
-                pthread_cond_broadcast(dep_conds[b1->x]);
+                pthread_cond_broadcast(&dep_conds[b1->x]);
             }
 
             // Partially Dependent
             else if (b2->x == b2->y || b3->x == b3->y)
             {
                 index* diag = b2->x == b2->y ? b2 : b3; // find out which dep block this relates to
-                pthread_mutex_lock(dep_locks[diag->x]);
+                pthread_mutex_lock(&dep_locks[diag->x]);
                 if (deps[diag->x] == 0) // Dependent block hasn't been calculated yet
                 {
                     while (1)
                     {
-                        pthread_cond_wait(dep_conds[diag->x], dep_locks[diag->x]);
+                        pthread_cond_wait(&dep_conds[diag->x], &dep_locks[diag->x]);
                         if (deps[diag->x] > 0) { break; }
                     }
                 }
-                pthread_mutex_unlock(dep_locks[diag->x]);
+                pthread_mutex_unlock(&dep_locks[diag->x]);
                 mt_blocks(blocks, l, dist, prev, kmax, imax, jmax, dist_lock, prev_lock);
 
-                pthread_mutex_lock(dep_locks[diag->x]);
+                pthread_mutex_lock(&dep_locks[diag->x]);
                 deps[diag->x]++;
-                pthread_mutex_unlock(dep_locks[diag->x]);
+                pthread_mutex_unlock(&dep_locks[diag->x]);
 
-                pthread_cond_broadcast(dep_conds[diag->x]); // Inform any independents the value has changed
+                pthread_cond_broadcast(&dep_conds[diag->x]); // Inform any independents the value has changed
             }
 
             else
             {
                 index* diag = point(b2->y, b2->y);
-                pthread_mutex_lock(dep_locks[diag->x]);
+                pthread_mutex_lock(&dep_locks[diag->x]);
                 if (deps[diag->x] < nb * 2 - 1) // Partially dependent hasn't finished yet
                 {
                     while (1)
                     {
-                        pthread_cond_wait(dep_conds[diag->x], dep_locks[diag->x]);
+                        pthread_cond_wait(&dep_conds[diag->x], &dep_locks[diag->x]);
                         if (deps[diag->x] >= nb * 2 - 1) { break; }
                     }
                 }
-                pthread_mutex_unlock(dep_locks[diag->x]);
+                pthread_mutex_unlock(&dep_locks[diag->x]);
 
                 mt_blocks(blocks, l, dist, prev, kmax, imax, jmax, dist_lock, prev_lock);
 
-                pthread_mutex_lock(dep_locks[diag->x]);
+                pthread_mutex_lock(&dep_locks[diag->x]);
                 deps[diag->x]++;
-                pthread_mutex_unlock(dep_locks[diag->x]);
+                pthread_mutex_unlock(&dep_locks[diag->x]);
 
-                pthread_cond_broadcast(dep_conds[diag->x]);
+                pthread_cond_broadcast(&dep_conds[diag->x]);
                 free(diag);
             }
         }
@@ -477,7 +477,7 @@ Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads)
     FWarsh_args_mt* args = malloc(sizeof(FWarsh_args_mt));
     *args = (const FWarsh_args_mt){ .block_length = block_length, .num_blocks = num_blocks, .rem = rem, .deps = deps,
         .m_dist = m_dist, .m_prev = m_prev, .wp_lock = &wp_lock, .dist_lock = &dist_lock, .prev_lock = &prev_lock,
-        .wp = wp, .dep_locks = &dep_locks, .dep_conds = &conds
+        .wp = wp, .dep_locks = dep_locks, .dep_conds = conds
     };
 
     for (int t = 0; t < numthreads; t++)
