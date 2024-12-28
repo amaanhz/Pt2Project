@@ -7,8 +7,8 @@
 #include "Dijkstra.h"
 #include "FWarsh.h"
 
-int main(int argc, char* argv[]) {
-	Graph* graph = fileparse("graphs/USairport_2010");
+int GraphSearch(const char* file) {
+	Graph* graph = fileparse(file);
 	//printGraph(graph);
 	//printf("Running DijkstraSSSP:\n");
 
@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
 	struct timespec start, end;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	//DijkstraAPSP(graph);
+	DijkstraAPSP(graph);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
 	double time_spent = (end.tv_sec - start.tv_sec);
@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
 	Result** b_results = NULL;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	//b_results = BMFordAPSP(graph);
+	b_results = BMFordAPSP(graph);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
 	time_spent = (end.tv_sec - start.tv_sec);
@@ -85,18 +85,6 @@ int main(int argc, char* argv[]) {
 	time_spent = (end.tv_sec - start.tv_sec);
 	time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
 	printf("Runtime for Floyd-Warshall (MT): %f\n", time_spent);
-
-	//printResults(f_results, graph->size);
-
-	/*
-	clock_gettime(CLOCK_MONOTONIC, &start);
-	b_results = BMFordAPSP_mt_b(graph, 16);
-	clock_gettime(CLOCK_MONOTONIC, &end);
-
-	time_spent = (end.tv_sec - start.tv_sec);
-	time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-	printf("Runtime for Bellman-Ford_APSP prototype (MT): %f\n", time_spent);
-	*/
 
 	printf("\n");
 
