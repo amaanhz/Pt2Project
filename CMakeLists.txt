@@ -21,5 +21,5 @@ add_executable(Pt2Project
     CUDA/Dijkstra.cuh
     GraphSearch.h
     Main.cpp
-        GraphExt.cpp
-        GraphExt.h)
+        GraphMatrix.cpp
+        Graphs.h)
