@@ -22,4 +22,4 @@ add_executable(Pt2Project
     GraphSearch.h
     Main.cpp
         GraphMatrix.cpp
-        Graphs.h)
+        GraphMatrix.h)

@@ -6,33 +6,33 @@ extern "C" {
 #include <pthread.h>
 
 typedef struct Node {
-	int vertex;
-	int weight;
-	struct Node* next;
+    int vertex;
+    int weight;
+    struct Node* next;
 } Node;
 
 typedef struct Graph {
-	int size;
-	Node** verts;
+    int size;
+    Node** verts;
 } Graph;
 
 typedef struct Result {
-	int* dist;
-	int* prev;
+    int* dist;
+    int* prev;
 } Result;
 
 typedef struct MultiSSSPArgs {
-	int* next_node;
-	pthread_mutex_t* q_lock;
-	pthread_mutex_t* r_lock;
-	const Graph* graph;
-	Result** results;
+    int* next_node;
+    pthread_mutex_t* q_lock;
+    pthread_mutex_t* r_lock;
+    const Graph* graph;
+    Result** results;
 } MultiSSSPArgs;
 
 typedef struct Queue {
-	int max;
-	int tail;
-	int* items;
+    int max;
+    int tail;
+    int* items;
 } Queue;
 
 

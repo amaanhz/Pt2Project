@@ -2,14 +2,12 @@
 #include "GraphParse.h"
 #include <pthread.h>
 
-typedef struct index
-{
+typedef struct index {
     int x;
     int y;
 } index;
 
-typedef struct block_triplet
-{
+typedef struct block_triplet {
     index* b1;
     index* b2;
     index* b3;
@@ -24,8 +22,7 @@ typedef struct work_pool // This doesn't need to be a circular queue...
     int empty;
 } work_pool;
 
-typedef struct FWarsh_args_mt
-{
+typedef struct FWarsh_args_mt {
     int block_length;
     int num_blocks;
     int rem;
@@ -38,15 +35,19 @@ typedef struct FWarsh_args_mt
     pthread_cond_t* dep_conds;
 } FWarsh_args_mt;
 
-typedef struct FWarsh_args
-{
+typedef struct FWarsh_args {
     int block_length;
     int** m_dist;
     int** m_prev;
-    int B1x; int B1y; // from
-    int B2x; int B2y; // to
-    int B3x; int B3y; // through
-    int kmax; int imax; int jmax;
+    int B1x;
+    int B1y; // from
+    int B2x;
+    int B2y; // to
+    int B3x;
+    int B3y; // through
+    int kmax;
+    int imax;
+    int jmax;
 } FWarsh_args;
 
 void m_dist_init(const Graph* graph, int** m_dist, int** m_prev);
@@ -56,7 +57,7 @@ Result** FWarsh(const Graph* graph);
 
 void do_blocks(const void* args);
 FWarsh_args* construct_args(int nb, int r, int l, const int** d, const int** prev, int b1x, int b1y, int b2x, int b2y,
-    int b3x, int b3y);
+                            int b3x, int b3y);
 Result** FWarsh_blocking(const Graph* graph, int block_length);
 
 index* point(int x, int y);
