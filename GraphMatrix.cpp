@@ -27,10 +27,14 @@ GraphMatrix::GraphMatrix(const GraphMatrix& graph, int initial) {
     matrix = new int*[size];
     for (int i = 0; i < size; i++) {
         matrix[i] = new int[size];
-        fill(matrix + i, matrix + i + size, initial);
+        fill_n(matrix[i], size, initial);
     }
 }
 
 int GraphMatrix::GetSize() const {
     return size;
+}
+
+int& GraphMatrix::operator[](int idx) {
+    return *matrix[idx];
 }
