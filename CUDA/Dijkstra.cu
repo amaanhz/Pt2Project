@@ -37,7 +37,7 @@ Result** cuda_DijkstraAPSP(const GraphMatrix& graph) {
     return results;
 }
 
-__global__ void dev_min(int* arr, int size, int* out_vals, int* out_idxs) {
+__global__ void dev_min(const int* arr, const int* idxs, int size, int* out_vals, int* out_idxs) {
     int tidx = threadIdx.x + blockIdx.x * blockDim.x; // how far into the array we index
     int split = size >> 1; // array is split into two
     // we will compare pairs from each half
@@ -47,6 +47,7 @@ __global__ void dev_min(int* arr, int size, int* out_vals, int* out_idxs) {
 
     if (tidx > split) { return; }
 
+    if (size == 2) { printf("idxs[0] = %d, idxs[1] = %d\n", idxs[0], idxs[1]); }
     int min = arr[tidx];
     int minid = tidx;
     int otherid = split + tidx;
@@ -69,10 +70,14 @@ __global__ void dev_min(int* arr, int size, int* out_vals, int* out_idxs) {
     // so lets the find the min within each block, since we are shared here
     // keep splitting, like we did for the full array
 
-    for (int bsplit = blockDim.x >> 1; bsplit > 0; bsplit >>= 1) {
+    for (int bsplit = (size < blockDim.x ? size : blockDim.x) >> 1; bsplit > 0; bsplit >>= 1) {
         if (threadIdx.x > bsplit) { return; } // dump any threads right of the split
         otherid = bsplit + threadIdx.x;
+        if (size == 2) { printf("Reached here: otherid = %d, blockIdx.x = %d, blockDim.x = %d, bsplit = %d\n",
+            otherid, blockIdx.x, blockDim.x, bsplit); }
+
         if ((otherid + blockIdx.x * blockDim.x) * 2 > size) { return; }
+
         __syncthreads();
 
         if (otherid < blockDim.x && minvals[otherid] < min) {
@@ -97,42 +102,105 @@ __global__ void dev_min(int* arr, int size, int* out_vals, int* out_idxs) {
 
     __syncthreads();
     if (threadIdx.x == 0) {
-        printf("Reached here\n");
-        //printf("minvals[0]: %d\n", minvals[0]);
-        //printf("argmins[0]: %d\n", argmins[0]);
+        //printf("Reached here\n");
+        printf("minvals[0]: %d\n", minvals[0]);
+        printf("argmins[0]: %d\n", argmins[0]);
         out_vals[blockIdx.x] = minvals[0];
-        out_idxs[blockIdx.x] = argmins[0];
+        if (*idxs == -1) {
+            out_idxs[blockIdx.x] = argmins[0];
+            //printf("\nout_idxs[%d] = %d\n", blockIdx.x, out_idxs[blockIdx.x]);
+        }
+        else {
+            //printf("argmins[0] = %d\n", argmins[0]);
+            out_idxs[blockIdx.x] = idxs[argmins[0]];
+        }
     }
 }
 
+/*__global__ void minArgMin(int* vals, int* idxs, int size, int* out_vals, int* out_idxs) {
+    int tidx = threadIdx.x + blockIdx.x * blockDim.x;
+    int split = size >> 1;
+
+    extern __shared__ int minvals[];
+    int* argmins = (int*)&minvals[blockDim.x];
+
+    if (tidx > split) { return; }
+
+    int min = vals[tidx];
+    int minid = tidx;
+    int otherid = split + tidx;
+
+    if (otherid < size && vals[otherid] < min) {
+        min = vals[otherid];
+        minid = otherid;
+    }
+
+    minvals[threadIdx.x] = min; // highest sharing we can do here is block-wide
+    argmins[threadIdx.x] = minid;
+
+    for (int bsplit = blockDim.x >> 1; bsplit > 0; bsplit >>= 1) {
+        if (threadIdx.x > bsplit) { return; } // dump any threads right of the split
+        otherid = bsplit + threadIdx.x;
+        if ((otherid + blockIdx.x * blockDim.x) * 2 > size) { return; }
+        __syncthreads();
+
+        if (otherid < blockDim.x && minvals[otherid] < min) {
+            min = minvals[otherid];
+            minid = argmins[otherid];
+        }
+        if (blockIdx.x == 1 && min == 0 && bsplit == 512) {
+            printf("tid = %d, otherid = %d, oidx = %d\n", threadIdx.x, otherid,
+                otherid + blockIdx.x * blockDim.x);
+        }
+        minvals[threadIdx.x] = min;
+        argmins[threadIdx.x] = minid;
+    }
+}*/
+
 int fastmin(int* arr, int size) {
+    int oldsize = size;
     int* d_arr;
 
     gpuErrchk(cudaMalloc(&d_arr, size*sizeof(int)));
-
     gpuErrchk(cudaMemcpy(d_arr, arr, size*sizeof(int), cudaMemcpyHostToDevice));
 
-    int grid_size = ceil((size / (double) BLOCK_SIZE) / 2);
-    int mem_size = BLOCK_SIZE * (sizeof(int) * 2);
+    int* idxs; int t[1] = {-1};
+    gpuErrchk(cudaMalloc(&idxs, size*sizeof(int)));
+    gpuErrchk(cudaMemcpy(idxs, t, sizeof(int), cudaMemcpyHostToDevice));
 
-    int* out_vals;
-    gpuErrchk(cudaMalloc(&out_vals, grid_size*sizeof(int)));
-    int* out_idxs;
-    gpuErrchk(cudaMalloc(&out_idxs, grid_size*sizeof(int)));
+    while (size > 1) {
+        int grid_size = ceil((size / (double) BLOCK_SIZE) / 2);
+        int mem_size = BLOCK_SIZE * (sizeof(int) * 2);
 
-    dev_min<<<grid_size, BLOCK_SIZE, mem_size>>>(d_arr, size, out_vals, out_idxs);
-    gpuErrchk(cudaPeekAtLastError());
-    gpuErrchk(cudaDeviceSynchronize());
-    printf("\n\n");
-    int* blockResults = new int[grid_size];
-    gpuErrchk(cudaMemcpy(blockResults, out_vals, grid_size*sizeof(int), cudaMemcpyDeviceToHost));
-    for (int i = 0; i < grid_size; i++) {
-        printf("%d \n", blockResults[i]);
+        int* out_vals;
+        gpuErrchk(cudaMalloc(&out_vals, grid_size*sizeof(int)));
+        int* out_idxs;
+        gpuErrchk(cudaMalloc(&out_idxs, grid_size*sizeof(int)));
+
+
+        dev_min<<<grid_size, BLOCK_SIZE, mem_size>>>(d_arr, idxs, size, out_vals, out_idxs);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+
+        size = grid_size;
+        idxs = out_idxs;
+        d_arr = out_vals;
     }
 
-    printf("Min found: %d\n", *min_element(blockResults, blockResults + grid_size));
-    printf("Actual min is %d\n\n", *min_element(arr, arr + size));
-    delete[] blockResults;
+
+    printf("\n\n");
+
+    int min; int argmin;
+    gpuErrchk(cudaMemcpy(&min, d_arr, sizeof(int), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(&argmin, idxs, sizeof(int), cudaMemcpyDeviceToHost));
+
+    printf("Min = %d at index %d\n", min, argmin);
+
+    int* actualiter = min_element(arr, arr + oldsize);
+    int actual = *actualiter; long int actualidx = actualiter - arr;
+
+    printf("Actual min = %d at index %ld\n", actual, actualidx);
+
     return 0;
 }
 
