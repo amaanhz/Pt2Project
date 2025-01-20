@@ -3,6 +3,6 @@
 #include "GraphMatrix.h"
 
 
-Result** cuda_DijkstraAPSP(const GraphMatrix& graph);
+Result** cuda_DijkstraAPSP(GraphMatrix& graph);
 
-int fastmin(int* arr, int size);
+int fastmin(int* arr, int* queues, int size);

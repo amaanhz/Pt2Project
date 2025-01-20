@@ -25,20 +25,9 @@ inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
     }
 }
 
-Result** cuda_DijkstraAPSP(const GraphMatrix& graph) {
-    Result** results = new Result*[graph.GetSize()];
-    queue<int> q;
-
-    GraphMatrix dist = GraphMatrix(graph, INT_MAX);
-    GraphMatrix prev = GraphMatrix(graph, -1);
-
-
-
-    return results;
-}
-
-__global__ void dev_min(const int* arr, const int* idxs, int size, int* out_vals, int* out_idxs) {
+__global__ void dev_min(const int* arr, const int* idxs, const int* mask, int size, int* out_vals, int* out_idxs) {
     int tidx = threadIdx.x + blockIdx.x * blockDim.x; // how far into the array we index
+    bool idxs_exist = *idxs != -1;
     int split = size >> 1; // array is split into two
     // we will compare pairs from each half
 
@@ -51,10 +40,15 @@ __global__ void dev_min(const int* arr, const int* idxs, int size, int* out_vals
     int minid = tidx;
     int otherid = split + tidx;
 
-    if (otherid < size && arr[otherid] < min) {
+    if ((otherid < size && arr[otherid] < min || !mask[tidx]) && mask[otherid]) {
+        // if arr[tidx] is not in the queue, default to arr[otherid] even if its not smaller
         min = arr[otherid];
         minid = otherid;
     }
+    else { // both nodes are not in the queue
+        min = INT_MAX;
+    }
+
 
     minvals[threadIdx.x] = min; // highest sharing we can do here is block-wide
     argmins[threadIdx.x] = minid;
@@ -64,7 +58,7 @@ __global__ void dev_min(const int* arr, const int* idxs, int size, int* out_vals
     // so lets the find the min within each block, since we are shared here
     // keep splitting, like we did for the full array
 
-    for (int bsplit = (size < blockDim.x ? size : blockDim.x) >> 1; bsplit > 0; bsplit >>= 1) {
+    for (int bsplit = (int)(size < blockDim.x ? size : blockDim.x) >> 1; bsplit > 0; bsplit >>= 1) {
         if (threadIdx.x > bsplit) { return; } // dump any threads right of the split
         otherid = bsplit + threadIdx.x;
         if ((otherid + blockIdx.x * blockDim.x) * 2 > size) { return; }
@@ -82,7 +76,7 @@ __global__ void dev_min(const int* arr, const int* idxs, int size, int* out_vals
     __syncthreads();
     if (threadIdx.x == 0) {
         out_vals[blockIdx.x] = minvals[0];
-        if (*idxs == -1) {
+        if (!idxs_exist) {
             out_idxs[blockIdx.x] = argmins[0];
         }
         else {
@@ -91,13 +85,14 @@ __global__ void dev_min(const int* arr, const int* idxs, int size, int* out_vals
     }
 }
 
-
-int fastmin(int* arr, int size) {
+int fastmin(int* arr, int* queues, int size) {
     int oldsize = size;
-    int* d_arr;
+    int* d_arr; int* mask;
 
     gpuErrchk(cudaMalloc(&d_arr, size*sizeof(int)));
     gpuErrchk(cudaMemcpy(d_arr, arr, size*sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMalloc(&mask, size*sizeof(int)));
+    gpuErrchk(cudaMemcpy(mask, queues, size*sizeof(int), cudaMemcpyHostToDevice));
 
     int* idxs; int t[1] = {-1};
     gpuErrchk(cudaMalloc(&idxs, size*sizeof(int)));
@@ -112,7 +107,7 @@ int fastmin(int* arr, int size) {
         gpuErrchk(cudaMalloc(&out_idxs, grid_size*sizeof(int)));
 
 
-        dev_min<<<grid_size, BLOCK_SIZE, mem_size>>>(d_arr, idxs, size, out_vals, out_idxs);
+        dev_min<<<grid_size, BLOCK_SIZE, mem_size>>>(d_arr, idxs, mask, size, out_vals, out_idxs);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
@@ -131,12 +126,38 @@ int fastmin(int* arr, int size) {
 
     gpuErrchk(cudaFree(d_arr));
     gpuErrchk(cudaFree(idxs));
+    gpuErrchk(cudaFree(mask));
 
     printf("Min = %d at index %d\n", min, argmin);
+    /*for (int i = 0; i < 501; i++) {
+        arr[501 * i + i] = INT_MAX;
+    }
     int* actualiter = min_element(arr, arr + oldsize);
     int actual = *actualiter; long int actualidx = actualiter - arr;
-    printf("Actual min = %d at index %ld\n", actual, actualidx);
+    printf("Actual min = %d at index %ld\n", actual, actualidx);*/
 
     return argmin;
 }
 
+Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
+    int dim = graph.GetSize();
+    Result** results = new Result*[dim];
+    queue<int> q;
+
+    GraphMatrix dist = GraphMatrix(graph, INT_MAX);
+    GraphMatrix prev = GraphMatrix(graph, -1);
+    GraphMatrix queues = GraphMatrix(graph, 1);
+    for (int i = 0; i < dim; i++) {
+        dist[dim * i + i] = 0;
+        queues[dim * i + i] = 0;
+    }
+
+    //graph.printGraph();
+    int next_node = fastmin(graph.GetMatrix(), queues.GetMatrix(), dim*dim);
+
+    int row = next_node / dim; int col = next_node % dim;
+    printf("next_node = %d == [%d][%d]\n", next_node, row, col);
+
+
+    return results;
+}
