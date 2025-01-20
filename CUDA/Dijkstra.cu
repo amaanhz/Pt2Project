@@ -128,7 +128,7 @@ int fastmin(int* arr, int* queues, int size) {
     gpuErrchk(cudaFree(idxs));
     gpuErrchk(cudaFree(mask));
 
-    printf("Min = %d at index %d\n", min, argmin);
+    //printf("Min = %d at index %d\n", min, argmin);
     /*for (int i = 0; i < 501; i++) {
         arr[501 * i + i] = INT_MAX;
     }
@@ -139,10 +139,70 @@ int fastmin(int* arr, int* queues, int size) {
     return argmin;
 }
 
+
+__global__ void dev_process(const int* src_edges, const int* u_edges, int* dist, int* prev, const int* queues, int size,
+    int u) {
+    int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tidx >= size) { return; }
+    if (!queues[tidx] || u_edges[tidx] == INT_MAX) { return; }
+
+    //printf("tidx = %d, u = %d, size = %d test: %d\n", tidx, u, size, dist[tidx]);
+
+    int alt = dist[u] + u_edges[tidx]; // dist[u] + Graph.Edges(u, v)
+    if (alt < dist[tidx]) {
+        dist[tidx] = alt;
+        prev[tidx] = u;
+    }
+}
+
+void placeOnDevice(int* ptr, int size, int* src) {
+    gpuErrchk(cudaMalloc(&ptr, size * sizeof(int)));
+    gpuErrchk(cudaMemcpy(ptr, src, size * sizeof(int), cudaMemcpyHostToDevice));
+}
+
+void process_node(GraphMatrix& graph, GraphMatrix& dist, GraphMatrix& prev, GraphMatrix& queues, int node, int dim) {
+    int row = node / dim; int col = node % dim;
+    // row is the source node, col is the shortest distance node from source, u
+    int& u = col;
+    queues[dim * u] = 0;
+
+    // dist[u] == node
+    // Graph.Edges(u, v) which are neighbours of u == &graph[u]
+
+    int grid_size = ceil(dim / (double) BLOCK_SIZE);
+
+    int indexIn = dim * row;
+    int* src_graph; int* src_dist; int* src_prev; int* src_queues;
+    int* u_edges;
+    //placeOnDevice(src_graph, dim, &graph[indexIn]);
+
+    gpuErrchk(cudaMalloc(&u_edges, dim * sizeof(int)));
+    gpuErrchk(cudaMemcpy(u_edges, &graph[dim * u], dim * sizeof(int), cudaMemcpyHostToDevice));
+
+    gpuErrchk(cudaMalloc(&src_dist, dim * sizeof(int)));
+    gpuErrchk(cudaMemcpy(src_dist, &dist[indexIn], dim * sizeof(int), cudaMemcpyHostToDevice));
+
+    gpuErrchk(cudaMalloc(&src_prev, dim * sizeof(int)));
+    gpuErrchk(cudaMemcpy(src_prev, &prev[indexIn], dim * sizeof(int), cudaMemcpyHostToDevice));
+
+    gpuErrchk(cudaMalloc(&src_queues, dim * sizeof(int)));
+    gpuErrchk(cudaMemcpy(src_queues, &queues[indexIn], dim * sizeof(int), cudaMemcpyHostToDevice));
+
+    dev_process<<<grid_size, BLOCK_SIZE>>>(src_graph, u_edges, src_dist, src_prev, src_queues, dim, u);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+
+    gpuErrchk(cudaMemcpy(&dist[indexIn], src_dist, dim*sizeof(int), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(&prev[indexIn], src_prev, dim*sizeof(int), cudaMemcpyDeviceToHost));
+
+    gpuErrchk(cudaFree(u_edges)); gpuErrchk(cudaFree(src_dist)); gpuErrchk(cudaFree(src_prev));
+    gpuErrchk(cudaFree(src_queues));
+}
+
+
 Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
     int dim = graph.GetSize();
     Result** results = new Result*[dim];
-    queue<int> q;
 
     GraphMatrix dist = GraphMatrix(graph, INT_MAX);
     GraphMatrix prev = GraphMatrix(graph, -1);
@@ -152,12 +212,20 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
         queues[dim * i + i] = 0;
     }
 
+    int remaining = dim*dim - dim;
     //graph.printGraph();
-    int next_node = fastmin(graph.GetMatrix(), queues.GetMatrix(), dim*dim);
 
-    int row = next_node / dim; int col = next_node % dim;
-    printf("next_node = %d == [%d][%d]\n", next_node, row, col);
+    size_t free, total;
+    while (remaining > 0) {
+        //int next_node = fastmin(dist.GetMatrix(), queues.GetMatrix(), dim*dim);
+        int next_node = 0;
+        //printf("next_node = %d == [%d][%d]\n", next_node, row, col);
 
+        process_node(graph, dist, prev, queues, next_node, dim);
+        remaining--;
+        cudaMemGetInfo(&free, &total);
+        printf("Memory Available: %ld/%ld\n", free, total);
+    }
 
     return results;
 }

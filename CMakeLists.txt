@@ -5,7 +5,6 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CUDA_ARCHITECTURES "native")
 enable_language(CUDA)
 set_source_files_properties(CUDA/Dijkstra.cu PROPERTIES LANGUAGE CUDA)
-
 include_directories(.)
 
 add_executable(Pt2Project
