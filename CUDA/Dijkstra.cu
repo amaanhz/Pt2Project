@@ -49,15 +49,18 @@ __global__ void dev_min(const int* arr, const int* idxs, int* mask, int size, in
     int minid = tidx;
     int otherid = split + tidx;
 
-    if (mask[otherid] && ((otherid < size && arr[otherid] < min) || !mask[tidx])) {
-        // if arr[tidx] is not in the queue, default to arr[otherid] even if its not smaller
-        //printf("choosing %d at index %d over %d at index %d\n", arr[otherid], otherid, arr[tidx], tidx);
-        min = arr[otherid];
-        minid = otherid;
+    if (otherid < size) {
+        if (mask[otherid] && ( arr[otherid] < min || !mask[tidx])) {
+            // if arr[tidx] is not in the queue, default to arr[otherid] even if its not smaller
+            //printf("choosing %d at index %d over %d at index %d\n", arr[otherid], otherid, arr[tidx], tidx);
+            min = arr[otherid];
+            minid = otherid;
+        }
+        if (!mask[tidx] && !mask[otherid]) { // both nodes are not in the queue
+            min = INT_MAX;
+        }
     }
-    if (!mask[tidx] && !mask[otherid]) { // both nodes are not in the queue
-        min = INT_MAX;
-    }
+
 
 
     minvals[threadIdx.x] = min; // highest sharing we can do here is block-wide
@@ -81,7 +84,7 @@ __global__ void dev_min(const int* arr, const int* idxs, int* mask, int size, in
         if (otherid > (size >> 1)) { return; }
         int oidx = otherid + blockIdx.x * blockDim.x;
         if (oidx > size) {
-            //printf("tidx %d is killing itself! (oidx : %d)\n", tidx, oidx);
+            printf("tidx %d is killing itself! (oidx : %d)\n", tidx, oidx);
             return; }
         //if (tidx == 0) { printf("otherid = %d, argmins[otherid] = %d, minvals[otherid] = %d, threshold = %d\n",
         //    otherid, argmins[otherid], minvals[otherid], threshold); }
@@ -156,7 +159,7 @@ int fastmin(int* arr, int* queues, int size) {
     gpuErrchk(cudaFree(idxs));
     gpuErrchk(cudaFree(mask));
 
-    printf("Min = %d at index %d\n", min, argmin);
+    //printf("Min = %d at index %d\n", min, argmin);
     /*for (int i = 0; i < 501; i++) {
         arr[501 * i + i] = INT_MAX;
     }
@@ -179,8 +182,8 @@ __global__ void dev_process(const int* u_edges, int* dist, int* prev, const int*
     int alt = dist[u] + u_edges[tidx]; // dist[u] + Graph.Edges(u, v)
     //printf("alt: %d, dist[%d] = %d\n", alt, tidx, dist[tidx]);
     if (alt < dist[tidx]) {
-        printf("Found a shorter path for tidx %d: setting dist[tidx] = %d and prev[tidx] = %d\n", tidx, alt
-            , u);
+        //printf("Found a shorter path for tidx %d: setting dist[tidx] = %d and prev[tidx] = %d\n", tidx, alt
+        //    , u);
         dist[tidx] = alt;
         prev[tidx] = u;
     }
@@ -219,7 +222,7 @@ void process_node(GraphMatrix& graph, GraphMatrix& dist, GraphMatrix& prev, Grap
     gpuErrchk(cudaMalloc(&src_queues, dim * sizeof(int)));
     gpuErrchk(cudaMemcpy(src_queues, &queues[indexIn], dim * sizeof(int), cudaMemcpyHostToDevice));
 
-    printf("u is %d and:\n", u);
+    //printf("u is %d and:\n", u);
     //dist.printGraph();
 
     dev_process<<<grid_size, BLOCK_SIZE>>>(u_edges, src_dist, src_prev, src_queues, dim, u);
