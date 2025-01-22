@@ -25,9 +25,9 @@ inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
     }
 }
 
-__device__ inline void printArr(const int* arr, const int* mask, int size) {
+__host__ __device__ inline void printArr(const int* arr, const int* mask, int size) {
     for (int i = 0; i < size; i++) {
-        printf("arr[%d] = %d, mask[%d] = %d\n", i, arr[i], i, mask[i]);
+        printf("arr[%d] = %d, prev[%d] = %d\n", i, arr[i], i, mask[i]);
     }
 }
 
@@ -43,7 +43,7 @@ __global__ void dev_min(const int* arr, const int* idxs, int* mask, int size, in
     if (tidx > split) { return; }
 
 
-    if (tidx == 0) { printArr(arr, mask, size); }
+    //if (tidx == 0) { printArr(arr, mask, size); }
 
     int min = arr[tidx];
     int minid = tidx;
@@ -80,14 +80,16 @@ __global__ void dev_min(const int* arr, const int* idxs, int* mask, int size, in
         if (threadIdx.x == 0 && bsplit == 0) { otherid = 1; }
         if (otherid > (size >> 1)) { return; }
         int oidx = otherid + blockIdx.x * blockDim.x;
-        if (oidx > size) { printf("tidx %d is killing itself! (oidx : %d)\n", tidx, oidx); return; }
-        if (tidx == 0) { printf("otherid = %d, argmins[otherid] = %d, minvals[otherid] = %d, threshold = %d\n",
-            otherid, argmins[otherid], minvals[otherid], threshold); }
+        if (oidx > size) {
+            //printf("tidx %d is killing itself! (oidx : %d)\n", tidx, oidx);
+            return; }
+        //if (tidx == 0) { printf("otherid = %d, argmins[otherid] = %d, minvals[otherid] = %d, threshold = %d\n",
+        //    otherid, argmins[otherid], minvals[otherid], threshold); }
 
 
         if ( mask[argmins[otherid]] && (otherid < blockDim.x && minvals[otherid] < min) || !mask[minid]) {
-            printf("tidx %d -> choosing %d at index %d (mask: %d) over %d at index %d (mask: %d, threshold: %d)\n",
-                tidx, minvals[otherid], otherid, mask[argmins[otherid]], min, minid, mask[minid], threshold);
+            //printf("tidx %d -> choosing %d at index %d (mask: %d) over %d at index %d (mask: %d, threshold: %d)\n",
+            //    tidx, minvals[otherid], otherid, mask[argmins[otherid]], min, minid, mask[minid], threshold);
             min = minvals[otherid];
             minid = argmins[otherid];
         }
@@ -166,17 +168,19 @@ int fastmin(int* arr, int* queues, int size) {
 }
 
 
-__global__ void dev_process(const int* src_edges, const int* u_edges, int* dist, int* prev, const int* queues, int size,
+__global__ void dev_process(const int* u_edges, int* dist, int* prev, const int* queues, int size,
     int u) {
     int tidx = blockIdx.x * blockDim.x + threadIdx.x;
     if (tidx >= size) { return; }
-    if (!queues[tidx] || u_edges[tidx] == INT_MAX) { return; }
+    if (!queues[tidx] || u_edges[tidx] == INT_MAX || dist[u] == INT_MAX) { return; }
 
     //printf("tidx = %d, u = %d, size = %d test: %d\n", tidx, u, size, dist[tidx]);
 
     int alt = dist[u] + u_edges[tidx]; // dist[u] + Graph.Edges(u, v)
     //printf("alt: %d, dist[%d] = %d\n", alt, tidx, dist[tidx]);
     if (alt < dist[tidx]) {
+        printf("Found a shorter path for tidx %d: setting dist[tidx] = %d and prev[tidx] = %d\n", tidx, alt
+            , u);
         dist[tidx] = alt;
         prev[tidx] = u;
     }
@@ -217,12 +221,15 @@ void process_node(GraphMatrix& graph, GraphMatrix& dist, GraphMatrix& prev, Grap
 
     printf("u is %d and:\n", u);
     //dist.printGraph();
-    dev_process<<<grid_size, BLOCK_SIZE>>>(src_graph, u_edges, src_dist, src_prev, src_queues, dim, u);
+
+    dev_process<<<grid_size, BLOCK_SIZE>>>(u_edges, src_dist, src_prev, src_queues, dim, u);
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
 
     gpuErrchk(cudaMemcpy(&dist[indexIn], src_dist, dim*sizeof(int), cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(&prev[indexIn], src_prev, dim*sizeof(int), cudaMemcpyDeviceToHost));
+    //printArr(&dist[indexIn], &prev[indexIn], dim);
+    //printf("\n");
 
     //dist.printGraph();
     gpuErrchk(cudaFree(u_edges)); gpuErrchk(cudaFree(src_dist)); gpuErrchk(cudaFree(src_prev));
@@ -239,7 +246,6 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
     GraphMatrix queues = GraphMatrix(graph, 1);
     for (int i = 0; i < dim; i++) {
         dist[dim * i + i] = 0;
-        queues[dim * i + i] = 0;
     }
 
     int remaining = dim*dim - dim;
@@ -258,12 +264,12 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
         //printf("Memory Available: %ld/%ld\n", free, total);
     }
 
+
+
     for (int i = 0; i < dim; i++ ) {
         results[i] = new Result;
-        for (int j = 0; j < dim; j++) {
-            results[i]->dist = &dist[dim * i + j];
-            results[i]->prev = &prev[dim * i + j];
-        }
+        results[i]->dist = &dist[dim * i];
+        results[i]->prev = &prev[dim * i];
     }
 
     return results;
