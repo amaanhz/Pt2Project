@@ -173,7 +173,7 @@ void printResult(const Result* result, int src, int size) {
     printf("\n");
 }
 
-void printResults(const Result** results, int size) {
+void printResults(Result** results, int size) {
     for (int i = 0; i < size; i++) {
         printf("Result for node %d:\n", i);
         printResult(results[i], i, size);
