@@ -42,6 +42,7 @@ __global__ void dev_min(const int* arr, const int* idxs, int* mask, int size, in
 
     if (tidx > split) { return; }
 
+
     if (tidx == 0) { printArr(arr, mask, size); }
 
     int min = arr[tidx];
@@ -69,25 +70,31 @@ __global__ void dev_min(const int* arr, const int* idxs, int* mask, int size, in
     // so lets the find the min within each block, since we are shared here
     // keep splitting, like we did for the full array
 
-    for (int bsplit = (int)(size < blockDim.x ? size : blockDim.x) >> 1; bsplit > 0; bsplit >>= 1) {
-        if (threadIdx.x > bsplit) {
+    for (int bsplit = (int)(size < blockDim.x ? size >> 1 : blockDim.x) >> 1; bsplit >= 0; bsplit >>= 1) {
+        int threshold = (bsplit & 1 ? bsplit + 1 : bsplit);
+        if (threadIdx.x > threshold) {
             //printf("tidx %d is killing itself!\n", tidx);
             return;
         } // dump any threads right of the split
-        otherid = bsplit + threadIdx.x;
+        otherid = threshold + threadIdx.x; // compare against corresponding past the split
+        if (threadIdx.x == 0 && bsplit == 0) { otherid = 1; }
+        if (otherid > (size >> 1)) { return; }
         int oidx = otherid + blockIdx.x * blockDim.x;
-        if (oidx * 2 > size) { printf("tidx %d is killing itself! (oidx : %d)\n", tidx, oidx); return; }
+        if (oidx > size) { printf("tidx %d is killing itself! (oidx : %d)\n", tidx, oidx); return; }
+        if (tidx == 0) { printf("otherid = %d, argmins[otherid] = %d, minvals[otherid] = %d, threshold = %d\n",
+            otherid, argmins[otherid], minvals[otherid], threshold); }
 
-        __syncthreads();
 
         if ( mask[argmins[otherid]] && (otherid < blockDim.x && minvals[otherid] < min) || !mask[minid]) {
-            printf("tidx %d -> choosing %d at index %d (mask: %d) over %d at index %d (mask: %d)\n",
-                tidx, minvals[otherid], otherid, mask[argmins[otherid]], min, minid, mask[minid]);
+            printf("tidx %d -> choosing %d at index %d (mask: %d) over %d at index %d (mask: %d, threshold: %d)\n",
+                tidx, minvals[otherid], otherid, mask[argmins[otherid]], min, minid, mask[minid], threshold);
             min = minvals[otherid];
             minid = argmins[otherid];
         }
         minvals[threadIdx.x] = min;
         argmins[threadIdx.x] = minid;
+        if (threadIdx.x == 0 && bsplit == 0) { break; }
+        __syncthreads();
     }
 
     __syncthreads();
