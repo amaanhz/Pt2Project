@@ -62,7 +62,6 @@ __global__ void dev_min(const int* arr, const int* idxs, int* mask, int size, in
     }
 
 
-
     minvals[threadIdx.x] = min; // highest sharing we can do here is block-wide
     argmins[threadIdx.x] = minid;
 
@@ -84,12 +83,13 @@ __global__ void dev_min(const int* arr, const int* idxs, int* mask, int size, in
         if (otherid > (size >> 1)) { return; }
         int oidx = otherid + blockIdx.x * blockDim.x;
         if (oidx > size) {
-            printf("tidx %d is killing itself! (oidx : %d)\n", tidx, oidx);
-            return; }
+            //printf("tidx %d is killing itself! (oidx : %d)\n", tidx, oidx);
+            return;
+        }
         //if (tidx == 0) { printf("otherid = %d, argmins[otherid] = %d, minvals[otherid] = %d, threshold = %d\n",
         //    otherid, argmins[otherid], minvals[otherid], threshold); }
 
-
+        __syncthreads();
         if ( mask[argmins[otherid]] && (otherid < blockDim.x && minvals[otherid] < min) || !mask[minid]) {
             //printf("tidx %d -> choosing %d at index %d (mask: %d) over %d at index %d (mask: %d, threshold: %d)\n",
             //    tidx, minvals[otherid], otherid, mask[argmins[otherid]], min, minid, mask[minid], threshold);
@@ -99,7 +99,6 @@ __global__ void dev_min(const int* arr, const int* idxs, int* mask, int size, in
         minvals[threadIdx.x] = min;
         argmins[threadIdx.x] = minid;
         if (threadIdx.x == 0 && bsplit == 0) { break; }
-        __syncthreads();
     }
 
     __syncthreads();
@@ -128,7 +127,7 @@ int fastmin(int* arr, int* queues, int size) {
     gpuErrchk(cudaMalloc(&idxs, size*sizeof(int)));
     gpuErrchk(cudaMemcpy(idxs, t, sizeof(int), cudaMemcpyHostToDevice));
 
-    int* out_vals; int* out_idxs; int* out_mask;
+    int* out_vals; int* out_idxs;
     while (size > 1) {
         int grid_size = ceil((size / (double) BLOCK_SIZE) / 2);
         int mem_size = BLOCK_SIZE * (sizeof(int) * 2);
@@ -254,7 +253,7 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
     int remaining = dim*dim - dim;
     //graph.printGraph();
 
-    size_t free, total;
+    //size_t free, total;
     while (remaining > 0) {
         //dist.printGraph();
         int next_node = fastmin(dist.GetMatrix(), queues.GetMatrix(), dim*dim);
@@ -262,7 +261,7 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
 
         process_node(graph, dist, prev, queues, next_node, dim);
         remaining--;
-        //printf("remaining = %d\n", remaining);
+        printf("remaining = %d\n", remaining);
         //cudaMemGetInfo(&free, &total);
         //printf("Memory Available: %ld/%ld\n", free, total);
     }

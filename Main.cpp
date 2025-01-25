@@ -8,7 +8,7 @@
 
 int main(int argc, char* argv[]) {
     //GraphSearch("graphs/USairport500");
-    auto graph = GraphMatrix("graphs/testgraph");
+    auto graph = GraphMatrix("graphs/USairport500");
     //graph.printGraph();
     Result** results = cuda_DijkstraAPSP(graph);
 
