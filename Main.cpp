@@ -17,5 +17,6 @@ int main(int argc, char* argv[]) {
     //fastmin(test, mask, 13);
 
     printResults(results, graph.GetSize());
+    //printResult(results[498], 498, graph.GetSize());
     printf("Done\n");
 }

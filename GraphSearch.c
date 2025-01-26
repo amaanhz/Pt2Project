@@ -94,6 +94,8 @@ int GraphSearch(const char* file) {
            resultsEq(d_results, f_results, graph->size) ? "equal" : "non-equal");
     printf("Results for BMFord and FW are %s\n", resultsEq(b_results, f_results, graph->size) ? "equal" : "non-equal");
 
+    printResult(d_results[498], 498, graph->size);
+
     ///////////////
 
     // Freeing Memory so compiler stops shouting //
