@@ -50,7 +50,7 @@ __global__ void dev_min(const int* arr, const int* idxs, const int* mask, int si
     int minid = tidx;
     int otherid = split + tidx;
 
-    if (otherid < size) {
+    //if (otherid < size) {
         if (mask[otherid] && ( arr[otherid] < min || !mask[tidx])) {
             // if arr[tidx] is not in the queue, default to arr[otherid] even if its not smaller
             //printf("choosing %d at index %d over %d at index %d\n", arr[otherid], otherid, arr[tidx], tidx);
@@ -60,7 +60,7 @@ __global__ void dev_min(const int* arr, const int* idxs, const int* mask, int si
         if (!mask[tidx] && !mask[otherid]) { // both nodes are not in the queue
             min = INT_MAX;
         }
-    }
+    //}
 
 
     minvals[threadIdx.x] = min; // highest sharing we can do here is block-wide
@@ -72,7 +72,6 @@ __global__ void dev_min(const int* arr, const int* idxs, const int* mask, int si
     // now need to find minimum of all these
     // so lets the find the min within each block, since we are shared here
     // keep splitting, like we did for the full array
-
     for (int bsplit = (int)(size < blockDim.x ? size >> 1 : blockDim.x) >> 1; bsplit >= 0; bsplit >>= 1) {
         int threshold = (bsplit & 1 ? bsplit + 1 : bsplit);
         if (threadIdx.x > threshold) {
@@ -90,7 +89,7 @@ __global__ void dev_min(const int* arr, const int* idxs, const int* mask, int si
         //if (tidx == 0) { printf("otherid = %d, argmins[otherid] = %d, minvals[otherid] = %d, threshold = %d\n",
         //    otherid, argmins[otherid], minvals[otherid], threshold); }
 
-        __syncthreads();
+        //__syncthreads();
         if ( mask[argmins[otherid]] && (otherid < blockDim.x && minvals[otherid] < min) || !mask[minid]) {
             //printf("tidx %d -> choosing %d at index %d (mask: %d) over %d at index %d (mask: %d, threshold: %d)\n",
             //    tidx, minvals[otherid], otherid, mask[argmins[otherid]], min, minid, mask[minid], threshold);
@@ -114,7 +113,6 @@ __global__ void dev_min(const int* arr, const int* idxs, const int* mask, int si
         if (gridDim.x == 1) {
             *out_min = out_vals[0];
             *out_minid = out_idxs[0];
-
         }
     }
 }
@@ -129,8 +127,10 @@ void fastmin(const int* arr, const int* queues, int* in_idxs, int size, int* out
         grid_size = ceil((size / (double) BLOCK_SIZE) / 2);
         int mem_size = BLOCK_SIZE * (sizeof(int) * 2);
 
+        int block_size = BLOCK_SIZE;
 
-        dev_min<<<grid_size, BLOCK_SIZE, mem_size>>>(d_arr, idxs, mask, size, out_vals, out_idxs, out_min, out_minid);
+
+        dev_min<<<grid_size, block_size, mem_size>>>(d_arr, idxs, mask, size, out_vals, out_idxs, out_min, out_minid);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
@@ -142,8 +142,8 @@ void fastmin(const int* arr, const int* queues, int* in_idxs, int size, int* out
 
 
     //printf("\n\n");
-    int resetIdxs[1] = {-1};
-    gpuErrchk(cudaMemcpy(in_idxs, resetIdxs, sizeof(int), cudaMemcpyHostToDevice)) // set *idxs -> -1
+    //int resetIdxs[1] = {-1};
+    //gpuErrchk(cudaMemcpy(in_idxs, resetIdxs, sizeof(int), cudaMemcpyHostToDevice)) // set *idxs -> -1
 
     //printf("Min = %d at index %d\n", min, argmin);
     //const int* actualiter = min_element(arr, arr + oldsize);
