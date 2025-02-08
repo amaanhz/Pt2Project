@@ -118,7 +118,7 @@ __global__ void dev_min(const int* arr, const int* idxs, const int* mask, int si
 }
 
 void fastmin(const int* arr, const int* queues, int* in_idxs, int size, int* out_vals, int* out_idxs,
-    int* block_id_masks, int grid_size, int* out_min, int* out_minid) {
+    int* block_id_masks, int grid_size, int* out_min, int* out_minid, cudaStream_t* stream) {
     int oldsize = size;
     const int* d_arr = arr; const int* mask = queues; int* idxs = in_idxs;
 
@@ -130,9 +130,7 @@ void fastmin(const int* arr, const int* queues, int* in_idxs, int size, int* out
         int block_size = BLOCK_SIZE;
 
 
-        dev_min<<<grid_size, block_size, mem_size>>>(d_arr, idxs, mask, size, out_vals, out_idxs, out_min, out_minid);
-        gpuErrchk(cudaPeekAtLastError());
-        gpuErrchk(cudaDeviceSynchronize());
+        dev_min<<<grid_size, block_size, mem_size, *stream>>>(d_arr, idxs, mask, size, out_vals, out_idxs, out_min, out_minid);
 
         size = grid_size;
         idxs = out_idxs;
@@ -178,7 +176,7 @@ __global__ void dev_process(const int* edges, int* dist, int* prev, int* queues,
     }
 }
 
-void process_node(int* graph, int* dist, int* prev, int* queues, int* node, int dim, int grid_size) {
+void process_node(int* graph, int* dist, int* prev, int* queues, int* node, int dim, int grid_size, cudaStream_t* stream) {
 
     // row is the source node, col is the shortest distance node from source, u
 
@@ -191,10 +189,7 @@ void process_node(int* graph, int* dist, int* prev, int* queues, int* node, int 
     //printf("u is %d and:\n", u);
     //dist.printGraph();
 
-    dev_process<<<grid_size, BLOCK_SIZE>>>(graph, dist, prev, queues, dim, node);
-    gpuErrchk(cudaPeekAtLastError());
-    gpuErrchk(cudaDeviceSynchronize());
-
+    dev_process<<<grid_size, BLOCK_SIZE, 0,*stream>>>(graph, dist, prev, queues, dim, node);
     //dist.printGraph();
 }
 
@@ -212,7 +207,7 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
     }
 
     int total = dim*dim;
-    int remaining = total - dim;
+
     //graph.printGraph();
 
     int grid_size = ceil((total / (double) BLOCK_SIZE) / 2);
@@ -246,19 +241,24 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
     gpuErrchk(cudaMemcpy(dev_graph, graph.GetMatrix(), total * sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(dev_prev, prev.GetMatrix(), total * sizeof(int), cudaMemcpyHostToDevice));
 
+    cudaStream_t stream;
+    cudaStreamCreate(&stream);
+
     //size_t free, total;
-    while (remaining > 0) {
+    for (int remaining = total - dim; remaining > 0; remaining--) {
         //dist.printGraph();
         fastmin(dev_dist, dev_queues, dev_idxs, total, out_vals, out_idxs, block_id_masks, grid_size,
-            out_min, out_minid);
+            out_min, out_minid, &stream);
         //printf("next_node = %d == [%d][%d]\n", next_node, row, col);
 
-        process_node(dev_graph, dev_dist, dev_prev, dev_queues, out_minid, dim, grid_size);
-        remaining--;
+        process_node(dev_graph, dev_dist, dev_prev, dev_queues, out_minid, dim, grid_size, &stream);
         //printf("remaining = %d\n", remaining);
         //cudaMemGetInfo(&free, &total);
         //printf("Memory Available: %ld/%ld\n", free, total);
     }
+
+    cudaDeviceSynchronize();
+    cudaPeekAtLastError();
 
     cudaMemcpy(&dist[0], dev_dist, total*sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(&prev[0], dev_prev, total*sizeof(int), cudaMemcpyDeviceToHost);
