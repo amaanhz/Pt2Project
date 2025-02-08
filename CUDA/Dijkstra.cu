@@ -253,7 +253,7 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
     for (int n = 0; n < dim; n++) {
         cudaStreamCreateWithFlags(streams + n, cudaStreamNonBlocking);
         int indexIn = n * dim;
-
+        //printf("n = %d, indexIn = %d\n", n, indexIn);
         gpuErrchk(cudaMemcpy(dev_idxs + indexIn, t, sizeof(int), cudaMemcpyHostToDevice));
 
         for (int m = 0; m < dim; m++) {
@@ -265,9 +265,11 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
             //printf("next_node = %d == [%d][%d]\n", next_node, row, col);
 
             process_node(dev_graph, dev_dist, dev_prev, dev_queues, out_minid + n, dim, grid_size, streams + n, n);
+
+            cudaDeviceSynchronize();
             //printf("remaining = %d\n", total - n);
-            cudaMemGetInfo(&free, &totalmem);
-            printf("Memory Available: %ld/%ld\n", free, totalmem);
+            //cudaMemGetInfo(&free, &totalmem);
+            //printf("Memory Available: %ld/%ld\n", free, totalmem);
         }
     }
 
