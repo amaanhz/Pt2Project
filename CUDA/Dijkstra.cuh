@@ -10,4 +10,4 @@ void fastmin(const int* arr, const int* queues, int* idxs, int size, int* out_va
     int grid_size, int* out_min, int* out_minid, cudaStream_t* stream);
 void placeOnDevice(int* ptr, int size, int* src);
 void process_node(int* graph, int* dist, int* prev, int* queues, int* node, int dim, int grid_size,
-    cudaStream_t* stream);
+    cudaStream_t* stream, int src);

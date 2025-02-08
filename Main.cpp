@@ -9,7 +9,7 @@
 
 int main(int argc, char* argv[]) {
     struct timespec start, end;
-    //GraphSearch("graphs/USairport_2010");
+    //GraphSearch("graphs/testgraph");
     auto graph = GraphMatrix("graphs/USairport500");
     //graph.printGraph();
 
