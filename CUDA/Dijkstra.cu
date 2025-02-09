@@ -156,17 +156,18 @@ __global__ void dev_process(const int* edges, int* dist, int* prev, int* queues,
     int u = *node_p;
 
     int tidx = blockIdx.x * blockDim.x + threadIdx.x;
-    queues[src * dim + u] = 0;
+
+    int uIndex = src * dim + u;
+    int myIndex = u * dim + tidx; // "v"
+    int sdtidx = src * dim + tidx;
+
+    queues[uIndex] = 0;
 
     if (tidx >= dim) { return; }
 
-
-    int myIndex = u * dim + tidx; // "v"
-    int uIndex = src * dim + u;
-
     //printf("tidx = %d, src = %d, u = %d, dim = %d dist[tidx]: %d, node = %d, edges[myIndex] = %d, dist[uIndex] = %d, queues = %d\n",
         //tidx, src, u, dim, dist[tidx], src * dim + u, edges[myIndex], dist[uIndex], queues[src*dim + tidx]);
-    if (!queues[src * dim + tidx] || edges[myIndex] == INT_MAX || dist[uIndex] == INT_MAX) { return; }
+    if (!queues[sdtidx] || edges[myIndex] == INT_MAX || dist[uIndex] == INT_MAX) { return; }
 
 
 
@@ -174,10 +175,10 @@ __global__ void dev_process(const int* edges, int* dist, int* prev, int* queues,
     int alt = dist[uIndex] + edges[myIndex]; // dist[u] + Graph.Edges(u, v)
     //printf("alt: %d, dist[%d] = %d (edges[%d] = %d) (src = %d, u = %d)\n", alt, tidx, dist[tidx], myIndex,
         //edges[myIndex], src, u);
-    if (alt < dist[src * dim + tidx]) {
+    if (alt < dist[sdtidx]) {
         //printf("Found a shorter path for tidx %d: setting dist[tidx] = %d and prev[tidx] = %d\n", tidx, alt, u);
-        dist[src * dim + tidx] = alt;
-        prev[src * dim + tidx] = u;
+        dist[sdtidx] = alt;
+        prev[sdtidx] = u;
     }
 }
 
@@ -249,12 +250,15 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
 
     cudaStream_t streams[dim];
 
+    for (int n = 0; n < dim; n++) {
+        gpuErrchk(cudaMemcpy(dev_idxs + (n * dim), t, sizeof(int), cudaMemcpyHostToDevice));
+    }
+
     size_t free, totalmem;
     for (int n = 0; n < dim; n++) {
         cudaStreamCreate(streams + n);
         int indexIn = n * dim;
-        //printf("n = %d, indexIn = %d\n", n, indexIn);
-        gpuErrchk(cudaMemcpy(dev_idxs + indexIn, t, sizeof(int), cudaMemcpyHostToDevice));
+        printf("n = %d, indexIn = %d\n", n, indexIn);
 
         for (int m = 0; m < dim; m++) {
             //dist.printGraph();

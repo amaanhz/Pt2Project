@@ -10,7 +10,7 @@
 int main(int argc, char* argv[]) {
     struct timespec start, end;
     //GraphSearch("graphs/USairport500");
-    auto graph = GraphMatrix("graphs/USairport500");
+    auto graph = GraphMatrix("graphs/USairport_2010");
     //graph.printGraph();
 
     clock_gettime(CLOCK_MONOTONIC, &start);
