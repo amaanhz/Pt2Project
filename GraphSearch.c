@@ -37,7 +37,7 @@ int GraphSearch(const char* file) {
     clock_gettime(CLOCK_MONOTONIC, &end);
 
     //printResult(d_results[0], 0, graph->size);
-    //printResults(d_results, graph->size);
+    printResults(d_results, graph->size);
 
     time_spent = (end.tv_sec - start.tv_sec);
     time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;

@@ -32,9 +32,12 @@ __host__ __device__ inline void printArr(const int* arr, const int* mask, int si
 }
 
 __global__ void dev_min(const int* arr, const int* idxs, const int* mask, int size, int* out_vals, int* out_idxs,
-    int* out_min, int* out_minid) {
+    int* out_min, int* out_minid, bool idxs_exist) {
     int tidx = threadIdx.x + blockIdx.x * blockDim.x; // how far into the array we index
-    bool idxs_exist = *idxs != -1;
+    //bool idxs_exist = *idxs != -1;
+    //if (tidx == 0) {
+    //    printf("*idxs == %d\n", *idxs);
+    //}
     int split = size >> 1; // array is split into two
     // we will compare pairs from each half
 
@@ -130,7 +133,8 @@ void fastmin(const int* arr, const int* queues, int* in_idxs, int size, int* out
         int block_size = BLOCK_SIZE;
 
 
-        dev_min<<<grid_size, block_size, mem_size, *stream>>>(d_arr, idxs, mask, size, out_vals, out_idxs, out_min, out_minid);
+        dev_min<<<grid_size, block_size, mem_size, *stream>>>(d_arr, idxs, mask, size, out_vals, out_idxs, out_min,
+            out_minid, !(size==oldsize));
 
         size = grid_size;
         idxs = out_idxs;
@@ -163,10 +167,11 @@ __global__ void dev_process(const int* edges, int* dist, int* prev, int* queues,
 
     queues[uIndex] = 0;
 
+    //printf("tidx >= dim = %d, tidx = %d\n", tidx >= dim, tidx);
     if (tidx >= dim) { return; }
 
     //printf("tidx = %d, src = %d, u = %d, dim = %d dist[tidx]: %d, node = %d, edges[myIndex] = %d, dist[uIndex] = %d, queues = %d\n",
-        //tidx, src, u, dim, dist[tidx], src * dim + u, edges[myIndex], dist[uIndex], queues[src*dim + tidx]);
+    //    tidx, src, u, dim, dist[tidx], src * dim + u, edges[myIndex], dist[uIndex], queues[src*dim + tidx]);
     if (!queues[sdtidx] || edges[myIndex] == INT_MAX || dist[uIndex] == INT_MAX) { return; }
 
 
@@ -174,7 +179,7 @@ __global__ void dev_process(const int* edges, int* dist, int* prev, int* queues,
     //if (tidx == 1) { printArr(edges, queues, dim*dim); }
     int alt = dist[uIndex] + edges[myIndex]; // dist[u] + Graph.Edges(u, v)
     //printf("alt: %d, dist[%d] = %d (edges[%d] = %d) (src = %d, u = %d)\n", alt, tidx, dist[tidx], myIndex,
-        //edges[myIndex], src, u);
+    //    edges[myIndex], src, u);
     if (alt < dist[sdtidx]) {
         //printf("Found a shorter path for tidx %d: setting dist[tidx] = %d and prev[tidx] = %d\n", tidx, alt, u);
         dist[sdtidx] = alt;
@@ -251,15 +256,15 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
     cudaStream_t streams[dim];
 
     for (int n = 0; n < dim; n++) {
-        gpuErrchk(cudaMemcpy(dev_idxs + (n * dim), t, sizeof(int), cudaMemcpyHostToDevice));
+        //gpuErrchk(cudaMemcpy(dev_idxs + (n * dim), t, sizeof(int), cudaMemcpyHostToDevice));
     }
 
     size_t free, totalmem;
     for (int n = 0; n < dim; n++) {
         cudaStreamCreate(streams + n);
         int indexIn = n * dim;
-        printf("n = %d, indexIn = %d\n", n, indexIn);
-
+        //printf("n = %d, indexIn = %d\n", n, indexIn);
+        //gpuErrchk(cudaMemcpy(dev_idxs + (n * dim), t, sizeof(int), cudaMemcpyHostToDevice));
         for (int m = 0; m < dim; m++) {
             //dist.printGraph();
             fastmin(dev_dist + indexIn, dev_queues + indexIn, dev_idxs + indexIn, dim, out_vals + n * grid_size,
@@ -272,8 +277,8 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
 
             //if (n % 2 == 0) { cudaDeviceSynchronize(); }
             //printf("remaining = %d\n", total - n);
-            //cudaMemGetInfo(&free, &totalmem);
-            //printf("Memory Available: %ld/%ld\n", free, totalmem);
+            cudaMemGetInfo(&free, &totalmem);
+            printf("Memory Available: %ld/%ld\n", free, totalmem);
         }
     }
 
