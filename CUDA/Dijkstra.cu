@@ -253,32 +253,36 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
     gpuErrchk(cudaMemcpy(dev_graph, graph.GetMatrix(), total * sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(dev_prev, prev.GetMatrix(), total * sizeof(int), cudaMemcpyHostToDevice));
 
-    cudaStream_t streams[dim];
+    cudaDeviceSynchronize();
 
-    for (int n = 0; n < dim; n++) {
+    cudaStream_t streams[2];
+    gpuErrchk(cudaStreamCreate(streams));
+    gpuErrchk(cudaStreamCreate(streams + 1));
+
+    //for (int n = 0; n < dim; n++) {
         //gpuErrchk(cudaMemcpy(dev_idxs + (n * dim), t, sizeof(int), cudaMemcpyHostToDevice));
-    }
+    //}
 
     size_t free, totalmem;
     for (int n = 0; n < dim; n++) {
-        cudaStreamCreate(streams + n);
+        //gpuErrchk(cudaStreamCreate(streams + n));
         int indexIn = n * dim;
-        //printf("n = %d, indexIn = %d\n", n, indexIn);
+        printf("n = %d, indexIn = %d\n", n, indexIn);
         //gpuErrchk(cudaMemcpy(dev_idxs + (n * dim), t, sizeof(int), cudaMemcpyHostToDevice));
         for (int m = 0; m < dim; m++) {
             //dist.printGraph();
             fastmin(dev_dist + indexIn, dev_queues + indexIn, dev_idxs + indexIn, dim, out_vals + n * grid_size,
                 out_idxs + n * grid_size, block_id_masks, grid_size, out_min + n, out_minid + n,
-                streams + n
+                streams + (n % 2)
                 );
             //printf("next_node = %d == [%d][%d]\n", next_node, row, col);
 
-            process_node(dev_graph, dev_dist, dev_prev, dev_queues, out_minid + n, dim, grid_size, streams + n, n);
+            process_node(dev_graph, dev_dist, dev_prev, dev_queues, out_minid + n, dim, grid_size, streams + (n % 2), n);
 
-            //if (n % 2 == 0) { cudaDeviceSynchronize(); }
+            //cudaDeviceSynchronize();
             //printf("remaining = %d\n", total - n);
-            cudaMemGetInfo(&free, &totalmem);
-            printf("Memory Available: %ld/%ld\n", free, totalmem);
+            //cudaMemGetInfo(&free, &totalmem);
+            //printf("Memory Available: %ld/%ld\n", free, totalmem);
         }
     }
 

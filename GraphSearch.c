@@ -25,7 +25,7 @@ int GraphSearch(const char* file) {
     struct timespec start, end;
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    DijkstraAPSP(graph);
+    //DijkstraAPSP(graph);
     clock_gettime(CLOCK_MONOTONIC, &end);
 
     double time_spent = (end.tv_sec - start.tv_sec);
