@@ -31,8 +31,8 @@ __host__ __device__ inline void printArr(const int* arr, const int* mask, int si
     }
 }
 
-__global__ void dev_min(const int* arr, const int* idxs, const int* mask, int size, int* out_vals, int* out_idxs,
-    int* out_min, int* out_minid, bool idxs_exist) {
+__global__ void dev_min(volatile const int* arr, volatile const int* idxs, volatile const int* mask, volatile int size,
+    volatile int* out_vals, volatile int* out_idxs, volatile int* out_min, volatile int* out_minid, bool idxs_exist) {
     int tidx = threadIdx.x + blockIdx.x * blockDim.x; // how far into the array we index
     //bool idxs_exist = *idxs != -1;
     //if (tidx == 0) {
@@ -120,10 +120,10 @@ __global__ void dev_min(const int* arr, const int* idxs, const int* mask, int si
     }
 }
 
-void fastmin(const int* arr, const int* queues, int* in_idxs, int size, int* out_vals, int* out_idxs,
-    int* block_id_masks, int grid_size, int* out_min, int* out_minid, cudaStream_t* stream) {
+void fastmin(volatile const int* arr, volatile const int* queues, volatile int* in_idxs, int size, volatile int* out_vals, volatile int* out_idxs,
+    volatile int* block_id_masks, volatile int grid_size, volatile int* out_min, volatile int* out_minid, cudaStream_t* stream) {
     int oldsize = size;
-    const int* d_arr = arr; const int* mask = queues; int* idxs = in_idxs;
+    volatile const int* d_arr = arr; volatile const int* mask = queues; volatile int* idxs = in_idxs;
 
     //printf("grid size = %d\n", grid_size);
     while (size > 1) {
@@ -156,10 +156,13 @@ void fastmin(const int* arr, const int* queues, int* in_idxs, int size, int* out
 }
 
 
-__global__ void dev_process(const int* edges, int* dist, int* prev, int* queues, int dim, int* node_p, int src) {
+__global__ void dev_process(volatile const int* edges, volatile int* dist, volatile int* prev, volatile int* queues,
+    int dim, volatile int* node_p, int src) {
     int u = *node_p;
 
     int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (tidx >= dim) { return; }
 
     int uIndex = src * dim + u;
     int myIndex = u * dim + tidx; // "v"
@@ -168,7 +171,7 @@ __global__ void dev_process(const int* edges, int* dist, int* prev, int* queues,
     queues[uIndex] = 0;
 
     //printf("tidx >= dim = %d, tidx = %d\n", tidx >= dim, tidx);
-    if (tidx >= dim) { return; }
+
 
     //printf("tidx = %d, src = %d, u = %d, dim = %d dist[tidx]: %d, node = %d, edges[myIndex] = %d, dist[uIndex] = %d, queues = %d\n",
     //    tidx, src, u, dim, dist[tidx], src * dim + u, edges[myIndex], dist[uIndex], queues[src*dim + tidx]);
@@ -187,8 +190,8 @@ __global__ void dev_process(const int* edges, int* dist, int* prev, int* queues,
     }
 }
 
-void process_node(int* graph, int* dist, int* prev, int* queues, int* node, int dim, int grid_size, cudaStream_t* stream,
-    int src) {
+void process_node(volatile int* graph, volatile int* dist, volatile int* prev, volatile int* queues, volatile int* node,
+    int dim, int grid_size, cudaStream_t* stream, int src) {
 
     // row is the source node, col is the shortest distance node from source, u
 
@@ -259,31 +262,46 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
     gpuErrchk(cudaStreamCreate(streams));
     gpuErrchk(cudaStreamCreate(streams + 1));
 
+
     //for (int n = 0; n < dim; n++) {
         //gpuErrchk(cudaMemcpy(dev_idxs + (n * dim), t, sizeof(int), cudaMemcpyHostToDevice));
     //}
 
+    cudaDeviceSynchronize();
+
     size_t free, totalmem;
     for (int n = 0; n < dim; n++) {
+        // if (n % 2 == 0) { cudaDeviceSynchronise; } <-- This doesn't work, because n = 1 will queue kernels
+
         //gpuErrchk(cudaStreamCreate(streams + n));
-        int indexIn = n * dim;
-        printf("n = %d, indexIn = %d\n", n, indexIn);
+
+        printf("n = %d, indexIn = %d\n", n);
         //gpuErrchk(cudaMemcpy(dev_idxs + (n * dim), t, sizeof(int), cudaMemcpyHostToDevice));
         for (int m = 0; m < dim; m++) {
             //dist.printGraph();
-            fastmin(dev_dist + indexIn, dev_queues + indexIn, dev_idxs + indexIn, dim, out_vals + n * grid_size,
-                out_idxs + n * grid_size, block_id_masks, grid_size, out_min + n, out_minid + n,
-                streams + (n % 2)
+            int indexIn = m * dim;
+            fastmin(dev_dist + indexIn, dev_queues + indexIn, dev_idxs + indexIn, dim, out_vals + m * grid_size,
+                out_idxs + m * grid_size, block_id_masks, grid_size, out_min + m, out_minid + m,
+                streams + (m % 2)
                 );
             //printf("next_node = %d == [%d][%d]\n", next_node, row, col);
 
-            process_node(dev_graph, dev_dist, dev_prev, dev_queues, out_minid + n, dim, grid_size, streams + (n % 2), n);
+
+
+             //<-- This works
+            //if (m % 2 == 0) { cudaDeviceSynchronise(); } <-- This works
+            //if (m % 500 == 0) { cudaDeviceSynchronise(); } <-- This works
 
             //cudaDeviceSynchronize();
             //printf("remaining = %d\n", total - n);
             //cudaMemGetInfo(&free, &totalmem);
             //printf("Memory Available: %ld/%ld\n", free, totalmem);
         }
+        for (int m = 0; m < dim; m++) {
+            process_node(dev_graph, dev_dist, dev_prev, dev_queues, out_minid + m, dim, grid_size, streams + (m % 2), m);
+        }
+        cudaDeviceSynchronize();
+        // cudaDeviceSynchronise(); <-- Therefore by extension this has to work, but it defeats the purpose of the streams
     }
 
     cudaDeviceSynchronize();

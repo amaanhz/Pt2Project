@@ -1,4 +1,9 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "GraphParse.h"
 #include <pthread.h>
 
@@ -69,3 +74,7 @@ block_triplet* wp_pop(work_pool* wp);
 void mt_blocks(block_triplet* triplet, int bl, int** dist, int** prev, int kmax, int imax, int jmax);
 void FWarsh_t(const void* args);
 Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads);
+
+#ifdef __cplusplus
+}
+#endif

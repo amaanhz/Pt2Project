@@ -191,7 +191,7 @@ int resultEq(const Result* r1, const Result* r2, int size) {
     return 1;
 }
 
-int resultsEq(const Result** r1, const Result** r2, int size) {
+int resultsEq(Result** r1, Result** r2, int size) {
     for (int i = 0; i < size; i++) {
         if (!resultEq(r1[i], r2[i], size)) {
             printf("Unequal results for APSP at node %d\n\n", i);

@@ -49,7 +49,7 @@ void printResult(const Result* result, int src, int size);
 void printResults(Result** results, int size);
 
 int resultEq(const Result* r1, const Result* r2, int size);
-int resultsEq(const Result** r1, const Result** r2, int size);
+int resultsEq(Result** r1, Result** r2, int size);
 
 void freeGraph(Graph* graph);
 void freeResults(Result** result, int size);
