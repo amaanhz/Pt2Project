@@ -76,5 +76,5 @@ void FWarsh_t(const void* args);
 Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads);
 
 #ifdef __cplusplus
-}
+3333}
 #endif

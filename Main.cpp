@@ -7,18 +7,22 @@
 #include "GraphMatrix.h"
 #include "GraphSearch.h"
 #include "CUDA/Dijkstra.cuh"
+#include "CUDA/FWarsh.cuh"
 
 
 int main(int argc, char* argv[]) {
 
+    const char* graph_path = "graphs/USairport500";
+
     struct timespec start, end;
     //GraphSearch("graphs/USairport500");
-    auto graph = GraphMatrix("graphs/USairport500");
+    auto graph = GraphMatrix(graph_path);
     //graph.printGraph();
-    Result** ground_truth = FWarsh_mt(fileparse("graphs/USairport500"), 10, 16);
+    Result** ground_truth = FWarsh_mt(fileparse(graph_path), 10, 16);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    Result** results = cuda_DijkstraAPSP(graph);
+    //Result** results = cuda_DijkstraAPSP(graph);
+    Result** results = cuda_FWarsh(graph, 1024);
     clock_gettime(CLOCK_MONOTONIC, &end);
 
     //int test[13] = {-2, 1, 3, 3, 3, -9, -3, -1, 10, 11, 12,  2, 0};

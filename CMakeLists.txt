@@ -36,7 +36,9 @@ add_executable(Pt2Project
     GraphSearch.h
     Main.cpp
         GraphMatrix.cpp
-        GraphMatrix.h)
+        GraphMatrix.h
+        CUDA/FWarsh.cuh
+        CUDA/FWarsh.cu)
 
 target_link_libraries(
         Pt2Project
