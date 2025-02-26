@@ -12,10 +12,10 @@
 
 int main(int argc, char* argv[]) {
 
-    const char* graph_path = "graphs/USairport500";
+    const char* graph_path = "graphs/USairport_2010";
 
     struct timespec start, end;
-    //GraphSearch("graphs/USairport500");
+    GraphSearch("graphs/USairport500");
     auto graph = GraphMatrix(graph_path);
     //graph.printGraph();
     Result** ground_truth = FWarsh_mt(fileparse(graph_path), 10, 16);
