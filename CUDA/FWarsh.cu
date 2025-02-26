@@ -20,6 +20,24 @@ Vec2::Vec2(int x, int y) : x(x), y(y) {}
 
 Triple::Triple(Vec2 p1, Vec2 p2, Vec2 p3) : p1(p1), p2(p2), p3(p3) { }
 
+__device__ void block_loop (int* d1, int* p1, int* d2, int* d3, int* p3, int rowIndex, int maxIndex, int bl, int cell) {
+    // all pointers are pointers to shared block memory
+    // only contains block values, not whole matrix
+
+
+    for (int k = 0; k < maxIndex; k++) {
+        int kRow = k * bl;
+        if (d2[rowIndex + k] != INT_MAX && d3[kRow + threadIdx.y] != INT_MAX) {
+            int t = d2[rowIndex + k] + d3[kRow + threadIdx.y];
+            __syncthreads();
+            if (t < d1[cell]) {
+                d1[cell] = t;
+                p1[cell] = p3[kRow + threadIdx.y];
+            }
+        }
+        __syncthreads();
+    }
+}
 
 __global__ void dep_block (int b, int num_blocks, int bl, int rem, int* dev_dist, int* dev_prev) {
     // B[b, b], B[b, b], B[b, b]
@@ -42,29 +60,14 @@ __global__ void dep_block (int b, int num_blocks, int bl, int rem, int* dev_dist
 
     __syncthreads(); // make sure shared memory is fully initialised
 
-    for (int k = 0; k < maxIndex; k++) {
-        int kRow = k * bl;
-        if (dist[rowIndex + k] != INT_MAX && dist[kRow + threadIdx.y] != INT_MAX) {
-            int t = dist[rowIndex + k] + dist[kRow + threadIdx.y];
-            __syncthreads();
-            if (t < dist[cell]) {
-                dist[cell] = t;
-                prev[cell] = prev[kRow + threadIdx.y];
-            }
-        }
-        __syncthreads(); // block must iterate in sync
-    }
+    block_loop(dist, prev, dist, dist, prev, rowIndex, maxIndex, bl, cell);
 
     // write-back
     dev_dist[cell] = dist[cell];
     dev_prev[cell] = prev[cell];
 }
 
-__device__ void block_loop (int* b1, int* b2, int* b3, int rowIndex, int maxK) {
-    for (int k = 0; k < maxK; k++) {
 
-    }
-}
 
 __global__ void pdep_blocks (int b, int num_blocks, int bl, int rem, int* dev_dist, int* dev_prev) {
     // B[b, i], B[b, b], B[b, i]
@@ -121,15 +124,30 @@ __global__ void pdep_blocks (int b, int num_blocks, int bl, int rem, int* dev_di
 
     __syncthreads(); // ensure all initialised
 
+    // limit index and prune threads outside
+    int maxIndex = bl;
+    if (blockX == num_blocks - 1 || blockY == num_blocks - 1) {
+        maxIndex = rem;
+        if (threadIdx.x > rem || threadIdx.y > rem) return;
+    }
 
+    int cell = rowIndex + threadIdx.y;
 
+    block_loop(dist_1, prev_1, dist_2, dist_3, prev_3, rowIndex, maxIndex, bl, cell);
 
+    dev_dist[cell] = dist[cell];
+    dev_prev[cell] = prev[cell];
 }
 
 __global__ void indep_blocks (int b, int num_blocks, int bl, int rem, int* dev_dist, int* dev_prev) {
     // B[i, j], B[i, b], B[b, j]
+    if ( threadIdx.x >= bl || threadIdx.y >= bl ) return;
 
-    if ( threadIdx.x >= bl ) return;
+    // find out what block we are
+    int blockX = blockIdx.x + (blockIdx.x >= b);
+    int blockY = blockIdx.y + (blockIdx.y >= b);
+
+
 }
 
 Result** cuda_FWarsh(GraphMatrix& graph, int block_length) {
@@ -155,6 +173,7 @@ Result** cuda_FWarsh(GraphMatrix& graph, int block_length) {
 
     dim3 block_threads(block_length, block_length);
 
+    int pdep_count = num_blocks * 2 - 2;
     dim3 pdep_dim(num_blocks - 1, num_blocks - 1);
 
     int indep_count = (num_blocks * num_blocks) - pdep_count - 1;
@@ -165,6 +184,6 @@ Result** cuda_FWarsh(GraphMatrix& graph, int block_length) {
     for (int block = 0; block < num_blocks; block++) {
         dep_block<<<1, block_threads, memsize>>>(block, num_blocks, block_length, rem, dev_dist, dev_prev);
         pdep_blocks<<<pdep_dim, block_threads, memsize * 2>>>(block, num_blocks, block_length, rem, dev_dist, dev_prev);
-        indep_blocks<<<indep_dim, block_threads, memsize * 2>>>(block, num_blocks, block_length, rem, dev_dist, dev_prev);
+        indep_blocks<<<indep_dim, block_threads, memsize * 3>>>(block, num_blocks, block_length, rem, dev_dist, dev_prev);
     }
 }
