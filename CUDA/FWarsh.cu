@@ -31,15 +31,16 @@ __device__ void block_loop (int* d1, int* p1, int* d2, int* d3, int* p3, int row
     // only contains block values, not whole matrix
     for (int k = 0; k < maxIndex; k++) {
         int kRow = k * maxIndex;
-        printf("kRow = %d, rowIndex = %d, rowIndex + k = %d, kRow + threadIdx.y = %d\n", kRow, rowIndex,
-        rowIndex + k, kRow + threadIdx.y);
+        //printf("kRow = %d, rowIndex = %d, rowIndex + k = %d, kRow + threadIdx.y = %d\n", kRow, rowIndex,
+        //rowIndex + k, kRow + threadIdx.y);
         int t1 = d2[rowIndex + k]; int t2 = d3[kRow + threadIdx.y];
         __syncthreads();
         if (t1 != INT_MAX && t2 != INT_MAX) {
             int t = t1 + t2;
             if (t < d1[cell]) {
-                printf("got here\n");
+                printf("t = %d, t < d1[%d] = %d\n", t, cell, d1[cell]);
                 d1[cell] = t;
+                printf("Setting p1[%d] = p3[%d] = %d\n\n", cell, kRow + threadIdx.y, p3[kRow + threadIdx.y]);
                 p1[cell] = p3[kRow + threadIdx.y];
             }
         }
@@ -76,16 +77,21 @@ __global__ void dep_block (int b, int num_blocks, int bl, int graphLength, int r
     int intoDevBlock = b * blocksDown + threadIdx.x * (rowsDown - 1) + b * bl + threadIdx.y;
 
 
+    printf("intoDevBlock for %d, %d = %d, dev_dist[%d] = %d, dev_prev[%d] = %d\n",
+        threadIdx.x, threadIdx.y, intoDevBlock, intoDevBlock, dev_dist[intoDevBlock], intoDevBlock, dev_prev[intoDevBlock]);
+
     dist[cell] = dev_dist[intoDevBlock];
     prev[cell] = dev_prev[intoDevBlock];
 
 
     __syncthreads(); // make sure shared memory is fully initialised
 
+    if (threadIdx.x == 0 && threadIdx.y == 0) { printArr(dist, prev, rem * rem); }
+
 
     block_loop(dist, prev, dist, dist, prev, rowIndex, maxIndex, bl, cell);
-printf("threadIdx.x = %d, threadIdx.y = %d, intoDevBlock = %d bl = %d\n", threadIdx.x, threadIdx.y
-    , intoDevBlock, bl);
+    //printf("threadIdx.x = %d, threadIdx.y = %d, intoDevBlock = %d bl = %d\n", threadIdx.x, threadIdx.y
+    //, intoDevBlock, bl);
 
     if (threadIdx.x == 0 && threadIdx.y == 0) { printArr(dist, prev, rem * rem); }
     // write-back
@@ -229,6 +235,7 @@ Result** cuda_FWarsh(GraphMatrix& graph, int block_length) {
             if (graph[rowIndex + c] != INT_MAX) { prev[rowIndex + c] = r; } // set previous as in graph
         }
     }
+    printArr(graph.GetMatrix(), prev.GetMatrix(), matSize);
     gpuErrchk(cudaMemcpy(dev_prev, &prev[0], sizeof(int) * matSize, cudaMemcpyHostToDevice));
 
     int num_blocks = (graph.GetSize() + block_length - 1) / block_length; // ceiling the value (1 axis)
@@ -256,8 +263,8 @@ Result** cuda_FWarsh(GraphMatrix& graph, int block_length) {
 
     GraphMatrix dist = GraphMatrix(graph, INT_MAX);
 
-    cudaMemcpy(&dist[0], dev_dist, sizeof(int) * graphSize * graphSize, cudaMemcpyDeviceToHost);
-    cudaMemcpy(&prev[0], dev_prev, sizeof(int) * graphSize * graphSize, cudaMemcpyDeviceToHost);
+    cudaMemcpy(&dist[0], dev_dist, sizeof(int) * matSize, cudaMemcpyDeviceToHost);
+    cudaMemcpy(&prev[0], dev_prev, sizeof(int) * matSize, cudaMemcpyDeviceToHost);
     cudaFree(dev_dist); cudaFree(dev_prev);
 
     Result** results = new Result*[graphSize];

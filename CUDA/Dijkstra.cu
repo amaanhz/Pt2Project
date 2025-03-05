@@ -217,11 +217,14 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
     GraphMatrix prev = GraphMatrix(graph, -1);
     GraphMatrix queues = GraphMatrix(graph, 1);
 
+
     for (int i = 0; i < dim; i++) {
         dist[dim * i + i] = 0;
     }
 
     int total = dim*dim;
+
+    printArr(graph.GetMatrix(), prev.GetMatrix(), total);
 
     //graph.printGraph();
 
@@ -309,6 +312,8 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
 
     cudaMemcpy(&dist[0], dev_dist, total*sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(&prev[0], dev_prev, total*sizeof(int), cudaMemcpyDeviceToHost);
+
+    //printArr(&dist[0], &prev[0], total);
 
     for (int i = 0; i < dim; i++ ) {
         results[i] = new Result;

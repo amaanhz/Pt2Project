@@ -21,8 +21,8 @@ int main(int argc, char* argv[]) {
     Result** ground_truth = FWarsh_mt(fileparse(graph_path), 10, 16);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    //Result** results = cuda_DijkstraAPSP(graph);
-    Result** results = cuda_FWarsh(graph, 32);
+    Result** results = cuda_DijkstraAPSP(graph);
+    results = cuda_FWarsh(graph, 32);
     clock_gettime(CLOCK_MONOTONIC, &end);
 
     //int test[13] = {-2, 1, 3, 3, 3, -9, -3, -1, 10, 11, 12,  2, 0};
