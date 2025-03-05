@@ -275,7 +275,7 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
 
         //gpuErrchk(cudaStreamCreate(streams + n));
 
-        printf("n = %d, indexIn = %d\n", n);
+        //printf("n = %d, indexIn = %d\n", n);
         //gpuErrchk(cudaMemcpy(dev_idxs + (n * dim), t, sizeof(int), cudaMemcpyHostToDevice));
         for (int m = 0; m < dim; m++) {
             //dist.printGraph();

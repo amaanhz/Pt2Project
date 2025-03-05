@@ -12,24 +12,24 @@
 
 int main(int argc, char* argv[]) {
 
-    const char* graph_path = "graphs/USairport_2010";
+    const char* graph_path = "graphs/testgraph";
 
     struct timespec start, end;
-    GraphSearch("graphs/USairport500");
+    //GraphSearch("graphs/USairport500");
     auto graph = GraphMatrix(graph_path);
     //graph.printGraph();
     Result** ground_truth = FWarsh_mt(fileparse(graph_path), 10, 16);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     //Result** results = cuda_DijkstraAPSP(graph);
-    Result** results = cuda_FWarsh(graph, 1024);
+    Result** results = cuda_FWarsh(graph, 32);
     clock_gettime(CLOCK_MONOTONIC, &end);
 
     //int test[13] = {-2, 1, 3, 3, 3, -9, -3, -1, 10, 11, 12,  2, 0};
     //int mask[13] = {1, 0, 1, 1, 1, 1, 1,  1,  1,  0,  1,  1, 1};
     //fastmin(test, mask, 13);
 
-    printResults(results, graph.GetSize());
+    //printResults(results, graph.GetSize());
     double time_spent = (end.tv_sec - start.tv_sec);
     time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
     printf("\nRuntime for Dijkstra_APSP (GPU): %f\n", time_spent);
