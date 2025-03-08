@@ -6,7 +6,6 @@
 #include <pthread.h>
 #include "GraphParse.h"
 
-
 void m_dist_init(const Graph* graph, int** m_dist, int** m_prev) {
     for (int u = 0; u < graph->size; u++) {
         m_dist[u] = malloc(sizeof(int) * graph->size);

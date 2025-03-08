@@ -26,7 +26,8 @@ Vec2::Vec2(int x, int y) : x(x), y(y) {}
 
 Triple::Triple(Vec2 p1, Vec2 p2, Vec2 p3) : p1(p1), p2(p2), p3(p3) { }
 
-__device__ void block_loop (int* d1, int* p1, int* d2, int* d3, int* p3, int rowIndex, int maxIndex, int bl, int cell) {
+__device__ void block_loop (int* d1, int* p1, int* d2, int* d3, int* p3, int rowIndex,
+    int maxIndex, int bl, int cell) {
     // all pointers are pointers to shared block memory
     // only contains block values, not whole matrix
     for (int k = 0; k < maxIndex; k++) {
@@ -48,6 +49,30 @@ __device__ void block_loop (int* d1, int* p1, int* d2, int* d3, int* p3, int row
     }
 }
 
+__device__ void block_loop_alt(int* d1, int* p1, int* d2, int* d3, int* p3, int rowIndex,
+    int maxIndex, int cell) {
+    for (int k = 0; k < maxIndex; k++) {
+        int kRow = k * maxIndex;
+        for (int i = 0; i < maxIndex; i++) {
+            int iRow = i * maxIndex;
+            for (int j = 0; j < maxIndex; j++ ) {
+                if (d2[iRow + k] != INT_MAX && d3[kRow + j] != INT_MAX) {
+                    int t = d2[iRow + k] + d3[kRow + j];
+                    printArr(d1, p1, maxIndex * maxIndex);
+                    if (t < d1[iRow + j]) {
+                        printf("t = %d, d1[%d + %d] = %d, p1[%d] = %d, p3[%d] = %d\n", t, iRow, j, d1[iRow + j],
+                            iRow + j, p1[iRow + j], kRow + j, p3[kRow + j]);
+                        printf("\n");
+                        //printf("Changing things\n");
+                        d1[iRow + j] = t;
+                        p1[iRow + j] = p3[kRow + j];
+                    }
+                }
+            }
+        }
+    }
+}
+
 __global__ void dep_block (int b, int num_blocks, int bl, int graphLength, int rem, int* dev_dist, int* dev_prev) {
     // B[b, b], B[b, b], B[b, b]
 
@@ -60,7 +85,7 @@ __global__ void dep_block (int b, int num_blocks, int bl, int graphLength, int r
         maxIndex = rem;
         if (threadIdx.x > rem - 1 || threadIdx.y > rem - 1) return;
     }
-    printf("hello\n");
+    //printf("hello\n");
     int blockSize = bl * bl;
 
     int blocksDown = blockSize * (num_blocks - 1) + maxIndex * maxIndex;
@@ -74,11 +99,13 @@ __global__ void dep_block (int b, int num_blocks, int bl, int graphLength, int r
     extern __shared__ int dist[];
     int* prev = dist + blockSize;
 
-    int intoDevBlock = b * blocksDown + threadIdx.x * (rowsDown - 1) + b * bl + threadIdx.y;
+    //int intoDevBlock = b * blocksDown + threadIdx.x * (rowsDown - 1) + b * bl + threadIdx.y;
+    int intoDevBlock = cell;
 
+    printf("threadIdx.x = %d, threadIdx.y = %d, cell = %d, intoDevBlock = %d\n", threadIdx.x, threadIdx.y, cell, intoDevBlock);
 
-    printf("intoDevBlock for %d, %d = %d, dev_dist[%d] = %d, dev_prev[%d] = %d\n",
-        threadIdx.x, threadIdx.y, intoDevBlock, intoDevBlock, dev_dist[intoDevBlock], intoDevBlock, dev_prev[intoDevBlock]);
+    //printf("intoDevBlock for %d, %d = %d, dev_dist[%d] = %d, dev_prev[%d] = %d\n",
+    //    threadIdx.x, threadIdx.y, intoDevBlock, intoDevBlock, dev_dist[intoDevBlock], intoDevBlock, dev_prev[intoDevBlock]);
 
     dist[cell] = dev_dist[intoDevBlock];
     prev[cell] = dev_prev[intoDevBlock];
@@ -86,14 +113,24 @@ __global__ void dep_block (int b, int num_blocks, int bl, int graphLength, int r
 
     __syncthreads(); // make sure shared memory is fully initialised
 
-    if (threadIdx.x == 0 && threadIdx.y == 0) { printArr(dist, prev, rem * rem); }
+    if (threadIdx.x == 0 && threadIdx.y == 0) {
+        printf("Before loop:\n");
+        printArr(dist, prev, rem * rem);
+        printf("\n");
+    }
 
+//if (threadIdx.x == 0 && threadIdx.y == 0) {
 
-    block_loop(dist, prev, dist, dist, prev, rowIndex, maxIndex, bl, cell);
+        block_loop(dist, prev, dist, dist, prev, rowIndex, maxIndex, bl, cell);
+    //}
     //printf("threadIdx.x = %d, threadIdx.y = %d, intoDevBlock = %d bl = %d\n", threadIdx.x, threadIdx.y
     //, intoDevBlock, bl);
-
-    if (threadIdx.x == 0 && threadIdx.y == 0) { printArr(dist, prev, rem * rem); }
+    __syncthreads();
+    if (threadIdx.x == 0 && threadIdx.y == 0) {
+        printf("After loop:\n");
+        printArr(dist, prev, rem * rem);
+        printf("\n");
+    }
     // write-back
     dev_dist[intoDevBlock] = dist[cell];
     dev_prev[intoDevBlock] = prev[cell];

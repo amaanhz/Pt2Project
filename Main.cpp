@@ -19,10 +19,11 @@ int main(int argc, char* argv[]) {
     auto graph = GraphMatrix(graph_path);
     //graph.printGraph();
     Result** ground_truth = FWarsh_mt(fileparse(graph_path), 10, 16);
+    printResults(ground_truth, graph.GetSize());
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    Result** results = cuda_DijkstraAPSP(graph);
-    results = cuda_FWarsh(graph, 32);
+    //Result** results = cuda_DijkstraAPSP(graph);
+    Result** results = cuda_FWarsh(graph, 32);
     clock_gettime(CLOCK_MONOTONIC, &end);
 
     //int test[13] = {-2, 1, 3, 3, 3, -9, -3, -1, 10, 11, 12,  2, 0};
