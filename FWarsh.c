@@ -271,6 +271,8 @@ void mt_blocks(block_triplet* triplet, int bl, int** dist, int** prev, int kmax,
     for (int k = 0; k < kmax; k++) {
         for (int i = 0; i < imax; i++) {
             for (int j = 0; j < jmax; j++) {
+                //printf("b2: B[%d, %d], b3: B[%d, %d], kmax = %d, imax = %d, jmax = %d\n", b2->x, b2->y, b3->x,
+                //        b3->y, kmax, imax, jmax);
                 if (dist[B2x + i][B2y + k] != INT_MAX && dist[B3x + k][B3y + j] != INT_MAX) {
                     int t = dist[B2x + i][B2y + k] + dist[B3x + k][B3y + j];
                     if (t < dist[B1x + i][B1y + j]) {

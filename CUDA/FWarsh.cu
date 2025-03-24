@@ -57,7 +57,8 @@ __device__ void block_loop_alt(int* d1, int* p1, int* d2, int* d3, int* p3, int 
             for (int j = 0; j < jmax; j++ ) {
                 if (d2[iRow + k] != INT_MAX && d3[kRow + j] != INT_MAX) {
                     int t = d2[iRow + k] + d3[kRow + j];
-                    if (t < 0) { printf("d2[%d][%d] = %d, d3[%d][%d] = %d\n", i, k, d2[iRow + k], k, j, d3[kRow + j]); }
+                    if (t < 0) { printf("d2[%d][%d] = %d, d3[%d][%d] = %d, blockIdx.x = %d, blockIdx.y = %d, \n", i, k, d2[iRow + k], k, j, d3[kRow + j],
+                        blockIdx.x, blockIdx.y); }
                     //printArr(d1, p1, maxIndex * maxIndex);
                     printf("t = %d, d1[%d + %d] = %d, p1[%d] = %d, p3[%d] = %d\n", t, iRow, j, d1[iRow + j],
                         iRow + j, p1[iRow + j], kRow + j, p3[kRow + j]);
@@ -117,11 +118,13 @@ __global__ void dep_block (int b, int num_blocks, int bl, int graphLength, int r
         printArr(dist, prev, maxIndex * maxIndex);
         printf("\n");
     }*/
-
     int kmax = maxIndex, imax = maxIndex, jmax = maxIndex;
+
+
 
     //block_loop(dist, prev, dist, dist, prev, rowIndex, maxIndex, cell);
     if (threadIdx.x == 0 && threadIdx.y == 0) {
+        printf("kmax = %d, imax = %d, jmax = %d\n", kmax, imax, jmax);
         printf("Block B[%d, %d]\n", b, b);
         //printArr(dist, prev, bl * bl);
         block_loop_alt(dist, prev, dist, dist, prev, kmax, imax, jmax);
@@ -243,6 +246,7 @@ __global__ void pdep_blocks (int b, int num_blocks, int bl, int graphLength, int
 
     __syncthreads(); // ensure all initialised
 
+    printf("kmax = %d, imax = %d, jmax = %d\n", kmax, imax, jmax);
 
     for (int i = 0; i < num_blocks; i++) {
         for (int j = 0; j < num_blocks; j++) {
@@ -307,16 +311,18 @@ __global__ void indep_blocks (int b, int num_blocks, int bl, int graphLength, in
     int imax = blockX == num_blocks - 1 ? maxIndex : bl;
     int jmax = blockY == num_blocks - 1 ? maxIndex : bl;
 
+    printf("kmax = %d, imax = %d, jmax = %d\n", kmax, imax, jmax);
+
     for (int i = 0; i < num_blocks; i++) {
         for (int j = 0; j < num_blocks; j++) {
             if (blockX == i && blockY == j && threadIdx.x == 0 && threadIdx.y == 0) {
-                printf("Indep: B[%d, %d]:\n", i, j);
+                printf("Indep: B[%d, %d]: blockIdx.x = %d, blockIdx.y = %d\n", i, j, blockIdx.x, blockIdx.y);
                 //printArr(dist_1, prev_1, bl * bl);
                 printf("\n");
-                printf("Indep: B[%d, %d]:\n", blockX, b);
+                printf("Indep: B[%d, %d]: blockIdx.x = %d, blockIdx.y = %d\n", blockX, b, blockIdx.x, blockIdx.y);
                 //printArr(dist_2, prev_3, bl * bl);
                 printf("\n");
-                printf("Indep: B[%d, %d]:\n", b, blockY);
+                printf("Indep: B[%d, %d]:, blockIdx.x = %d, blockIdx.y = %d\n", b, blockY, blockIdx.x, blockIdx.y);
                 //printArr(dist_3, prev_3, bl * bl);
                 printf("\n");
             }

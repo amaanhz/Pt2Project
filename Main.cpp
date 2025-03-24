@@ -18,13 +18,13 @@ int main(int argc, char* argv[]) {
     auto graph = GraphMatrix(graph_path);
     //graph.printGraph();
     clock_gettime(CLOCK_MONOTONIC, &start);
-    Result** ground_truth = FWarsh_mt(fileparse(graph_path), 10, 16);
+    Result** ground_truth = FWarsh_mt(fileparse(graph_path), 2, 16);
     clock_gettime(CLOCK_MONOTONIC, &end);
 
     double time_spent = (end.tv_sec - start.tv_sec);
     time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
     printf("\nRuntime for FWarsh (CPU): %f\n", time_spent);
-    //printResults(ground_truth, graph.GetSize());
+    printResults(ground_truth, graph.GetSize());
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     //Result** results = cuda_DijkstraAPSP(graph);
@@ -35,7 +35,7 @@ int main(int argc, char* argv[]) {
     //int mask[13] = {1, 0, 1, 1, 1, 1, 1,  1,  1,  0,  1,  1, 1};
     //fastmin(test, mask, 13);
 
-    //printResults(results, graph.GetSize());
+    printResults(results, graph.GetSize());
     time_spent = (end.tv_sec - start.tv_sec);
     time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
     printf("\nRuntime for FWarsh (GPU): %f\n", time_spent);
