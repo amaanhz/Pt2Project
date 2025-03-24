@@ -156,9 +156,17 @@ void printResult(const Result* result, int src, int size) {
                 printf("Path: ");
                 int v = result->prev[i];
                 printf("%d <- ", i);
+                int prev = -1;
                 while (v != src && v != i) {
-                    printf("%d <- ", v);
-                    v = result->prev[v];
+                    if (v != prev && v != -1) {
+                        printf("%d <- ", v);
+                        prev = v;
+                        v = result->prev[v];
+                    }
+                    else {
+                        printf("Unreachable: ");
+                        break;
+                    }
                 }
                 printf("%d\n", v);
             }

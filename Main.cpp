@@ -11,8 +11,7 @@
 
 
 int main(int argc, char* argv[]) {
-
-    const char* graph_path = "graphs/USairport500";
+    const char* graph_path = "graphs/testgraph";
 
     struct timespec start, end;
     //GraphSearch("graphs/USairport500");
@@ -29,7 +28,7 @@ int main(int argc, char* argv[]) {
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     //Result** results = cuda_DijkstraAPSP(graph);
-    Result** results = cuda_FWarsh(graph, 1);
+    Result** results = cuda_FWarsh(graph, 2);
     clock_gettime(CLOCK_MONOTONIC, &end);
 
     //int test[13] = {-2, 1, 3, 3, 3, -9, -3, -1, 10, 11, 12,  2, 0};
@@ -37,11 +36,11 @@ int main(int argc, char* argv[]) {
     //fastmin(test, mask, 13);
 
     //printResults(results, graph.GetSize());
-
     time_spent = (end.tv_sec - start.tv_sec);
     time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
     printf("\nRuntime for FWarsh (GPU): %f\n", time_spent);
-    //printResult(results[498], 498, graph.GetSize());
+    //printResult(ground_truth[1], 1, graph.GetSize());
+    //printResult(results[1], 1, graph.GetSize());
 
     //printResult(ground_truth[7], 7, graph.GetSize());
     //printResult(results[7], 7, graph.GetSize());
