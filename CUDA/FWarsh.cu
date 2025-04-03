@@ -34,14 +34,17 @@ Vec2::Vec2(int x, int y) : x(x), y(y) {}
 Triple::Triple(Vec2 p1, Vec2 p2, Vec2 p3) : p1(p1), p2(p2), p3(p3) { }
 
 __device__ void block_loop (int* d1, int* p1, int* d2, int* d3, int* p3, int rowIndex,
-    int maxIndex, int cell) {
+    int bl, int kmax, int imax, int jmax, int cell) {
     // all pointers are pointers to shared block memory
     // only contains block values, not whole matrix
-    for (int k = 0; k < maxIndex; k++) {
-        int kRow = k * maxIndex;
+    for (int k = 0; k < kmax; k++) {
+        int kRow = k * bl;
         //printf("kRow = %d, rowIndex = %d, rowIndex + k = %d, kRow + threadIdx.y = %d\n", kRow, rowIndex,
         //rowIndex + k, kRow + threadIdx.y);
-        int t1 = d2[rowIndex + k]; int t2 = d3[kRow + threadIdx.y];
+        int t1 = INT_MAX; int t2 = INT_MAX;
+        if (threadIdx.x < imax && threadIdx.y < jmax) {
+            t1 = d2[rowIndex + k]; t2 = d3[kRow + threadIdx.y];
+        }
         __syncthreads();
         if (t1 != INT_MAX && t2 != INT_MAX) {
             int t = t1 + t2;
@@ -131,14 +134,13 @@ __global__ void dep_block (int b, int num_blocks, int bl, int graphLength, int r
     int kmax = maxIndex, imax = maxIndex, jmax = maxIndex;
 
 
-
-    //block_loop(dist, prev, dist, dist, prev, rowIndex, maxIndex, cell);
-    if (threadIdx.x == 0 && threadIdx.y == 0) {
+    block_loop(dist, prev, dist, dist, prev, rowIndex, bl, kmax, imax, jmax, cell);
+    //if (threadIdx.x == 0 && threadIdx.y == 0) {
         //printf("Block B[%d, %d]\n", b, b);
         //printArr(dist, prev, bl * bl);
-        block_loop_alt(dist, prev, dist, dist, prev, kmax, imax, jmax, bl);
+        //block_loop_alt(dist, prev, dist, dist, prev, kmax, imax, jmax, bl);
         //printf("End\n");
-    }
+    //}
 
     //printf("threadIdx.x = %d, threadIdx.y = %d, intoDevBlock = %d bl = %d\n", threadIdx.x, threadIdx.y
     //, intoDevBlock, bl);
@@ -262,8 +264,8 @@ __global__ void pdep_blocks (int b, int num_blocks, int bl, int graphLength, int
         __syncthreads();
     }*/
 
-    //block_loop(dist_1, prev_1, dist_2, dist_3, prev_3, rowIndex, maxIndex, cell);
-    if (threadIdx.x == 0 && threadIdx.y == 0) block_loop_alt(dist_1, prev_1, dist_2, dist_3, prev_3, kmax, imax, jmax, bl);
+    block_loop(dist_1, prev_1, dist_2, dist_3, prev_3, rowIndex, bl, kmax, imax, jmax, cell);
+    //if (threadIdx.x == 0 && threadIdx.y == 0) block_loop_alt(dist_1, prev_1, dist_2, dist_3, prev_3, kmax, imax, jmax, bl);
 
 
     dev_dist[devIndexIn] = dist_i[cell];
@@ -289,12 +291,9 @@ __global__ void indep_blocks (int b, int num_blocks, int bl, int graphLength, in
     int* dist_1 = shared; int* prev_1 = dist_1 + blockSize;
     int* dist_2 = prev_1 + blockSize;
     int* dist_3 = dist_2 + blockSize; int* prev_3 = dist_3 + blockSize;
-
-    int maxIndex = bl;
     //if (blockX == num_blocks - 1 || blockY == num_blocks - 1) {
     //    if (threadIdx.x >= rem || threadIdx.y >= rem) return;
     //}
-    if (b == num_blocks - 1) {maxIndex = rem;}
 
     // populate shared memory
     int sharedIndexIn = rowIndex + threadIdx.y;
@@ -328,8 +327,8 @@ __global__ void indep_blocks (int b, int num_blocks, int bl, int graphLength, in
         __syncthreads();
     }*/
 
-    //block_loop(dist_1, prev_1, dist_2, dist_3, prev_3, rowIndex, maxIndex, cell);
-    if (threadIdx.x == 0 && threadIdx.y == 0) block_loop_alt(dist_1, prev_1, dist_2, dist_3, prev_3, kmax, imax, jmax, bl);
+    block_loop(dist_1, prev_1, dist_2, dist_3, prev_3, rowIndex, bl, kmax, imax, jmax, cell);
+    //if (threadIdx.x == 0 && threadIdx.y == 0) block_loop_alt(dist_1, prev_1, dist_2, dist_3, prev_3, kmax, imax, jmax, bl);
 
     dev_dist[devIndexIn] = dist_1[sharedIndexIn];
     dev_prev[devIndexIn] = prev_1[sharedIndexIn];
