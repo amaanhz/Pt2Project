@@ -11,7 +11,7 @@
 
 
 int main(int argc, char* argv[]) {
-    const char* graph_path = "graphs/testgraph";
+    const char* graph_path = "graphs/USairport500";
 
     struct timespec start, end;
     //GraphSearch("graphs/USairport500");
@@ -26,10 +26,11 @@ int main(int argc, char* argv[]) {
 
 
     printf("\nRuntime for FWarsh (CPU): %f\n", time_spent);
-    printResults(ground_truth, graph.GetSize());
+    //printResults(ground_truth, graph.GetSize());
 
-
-    for (int bl = 3; bl <= 3; bl++) {
+    size_t free, totalmem;
+    int bl = 4;
+    for (int bl = 1; bl <= 32; bl++) {
         printf("Trying block length = %d", bl);
 
         struct timespec start_cuda, end_cuda;
@@ -43,7 +44,7 @@ int main(int argc, char* argv[]) {
         //int mask[13] = {1, 0, 1, 1, 1, 1, 1,  1,  1,  0,  1,  1, 1};
         //fastmin(test, mask, 13);
 
-        printResults(results, graph.GetSize());
+        //printResults(results, graph.GetSize());
         double time_cuda = (end_cuda.tv_sec - start_cuda.tv_sec);
         time_cuda += (end_cuda.tv_nsec - start_cuda.tv_nsec) / 1000000000.0;
         printf("\nRuntime for FWarsh (GPU): %f\n", time_cuda);
@@ -55,6 +56,8 @@ int main(int argc, char* argv[]) {
 
         printf("Results for GPU_Fwarsh and CPU_FWarsh are %s\n",
                resultsEq(ground_truth, results, graph.GetSize()) ? "equal" : "non-equal");
+        cudaMemGetInfo(&free, &totalmem);
+        printf("Memory Available: %ld/%ld\n", free, totalmem);
     }
 
     printf("Done\n");
