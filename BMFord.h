@@ -1,8 +1,7 @@
 #pragma once
 #include "GraphParse.h"
 
-typedef struct BMF_b_args
-{
+typedef struct BMF_b_args {
     const Graph* graph;
     int** m_dist;
     int* next_node;

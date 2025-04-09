@@ -1,5 +1,13 @@
 #pragma once
+#include "GraphParse.h"
+#include "GraphMatrix.h"
+#include <cuda_runtime.h>
 
-void vectorAdd(const float *A, const float *B, float *C, int numElements);
 
-int runCudaTest();
+Result** cuda_DijkstraAPSP(GraphMatrix& graph);
+
+void fastmin(volatile const int* arr, volatile const int* queues, volatile int* in_idxs, int size, volatile int* out_vals, volatile int* out_idxs,
+    volatile int* block_id_masks, volatile int grid_size, volatile int* out_min, volatile int* out_minid, cudaStream_t* stream);
+void placeOnDevice(int* ptr, int size, int* src);
+void process_node(volatile int* graph, volatile int* dist, volatile int* prev, volatile int* queues, volatile int* node,
+    int dim, int grid_size, cudaStream_t* stream, int src);
