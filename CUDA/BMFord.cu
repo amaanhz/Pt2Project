@@ -1,5 +1,9 @@
 #include <cuda_runtime.h>
 #include <stdio.h>
+<<<<<<< HEAD
+#include <cooperative_groups.h>
+=======
+>>>>>>> 3391f487b3f81d24d1a12d471d4c29f6c6b01b98
 #include "BMFord.cuh"
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
@@ -18,11 +22,19 @@ __host__ __device__ inline void printArr(const int* arr, const int* mask, int si
     }
 }
 
+<<<<<<< HEAD
+__global__ void Relax(int* dev_graph, int* dev_dist, int* dev_prev, int graph_size) {
+
+}
+
+Result** cuda_BMFord(GraphMatrix& graph, int block_length) {
+=======
 __global__ void Relax(int* dev_graph, int* dev_dist, int* dev_prev) {
 
 }
 
 Result** cuda_BMFord(GraphMatrix& graph) {
+>>>>>>> 3391f487b3f81d24d1a12d471d4c29f6c6b01b98
     int graphSize = graph.GetSize(); int matSize = graphSize * graphSize;
     int* dev_dist; int* dev_prev; int* dev_graph;
     GraphMatrix dist = GraphMatrix(graph, INT_MAX);
@@ -36,5 +48,13 @@ Result** cuda_BMFord(GraphMatrix& graph) {
     gpuErrchk(cudaMemcpy(dev_prev, &prev, sizeof(int) * matSize, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(dev_graph, &graph, sizeof(int) * matSize, cudaMemcpyHostToDevice));
 
+<<<<<<< HEAD
+    // BMFord works by iterating V times
+    // And on each iteration every vertex relaxes
+
+    // blockX: block for each source vertex
+    dim3 grid_dim(graphSize, graphSize / block_length + ((graphSize % block_length) > 0));
+=======
+>>>>>>> 3391f487b3f81d24d1a12d471d4c29f6c6b01b98
 
 }

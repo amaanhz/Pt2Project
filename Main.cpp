@@ -11,10 +11,10 @@
 
 
 int main(int argc, char* argv[]) {
-    const char* graph_path = "graphs/USairport500";
+    const char* graph_path = "graphs/testgraph_32_converted";
 
     struct timespec start, end;
-    //GraphSearch("graphs/USairport500");
+    GraphSearch("graphs/testgraph_32_converted");
     auto graph = GraphMatrix(graph_path);
     //graph.printGraph();
     clock_gettime(CLOCK_MONOTONIC, &start);
@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
 
     size_t free, totalmem;
     int bl = 4;
-    for (int bl = 1; bl <= 32; bl++) {
+    for (int bl = 1; bl <= 5; bl++) {
         printf("Trying block length = %d", bl);
 
         struct timespec start_cuda, end_cuda;
