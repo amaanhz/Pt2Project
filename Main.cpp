@@ -6,15 +6,16 @@
 #include "GraphParse.h"
 #include "GraphMatrix.h"
 #include "GraphSearch.h"
+#include "CUDA/BMFord.cuh"
 #include "CUDA/Dijkstra.cuh"
 #include "CUDA/FWarsh.cuh"
 
 
 int main(int argc, char* argv[]) {
-    const char* graph_path = "graphs/testgraph_32_converted";
+    const char* graph_path = "graphs/USairport500";
 
     struct timespec start, end;
-    GraphSearch("graphs/testgraph_32_converted");
+    GraphSearch(graph_path);
     auto graph = GraphMatrix(graph_path);
     //graph.printGraph();
     clock_gettime(CLOCK_MONOTONIC, &start);
@@ -29,11 +30,12 @@ int main(int argc, char* argv[]) {
     //printResults(ground_truth, graph.GetSize());
 
     size_t free, totalmem;
-    int bl = 4;
-    for (int bl = 1; bl <= 5; bl++) {
+    struct timespec start_cuda, end_cuda;
+
+    for (int bl = 2; bl <= 2; bl++) {
         printf("Trying block length = %d", bl);
 
-        struct timespec start_cuda, end_cuda;
+
 
         clock_gettime(CLOCK_MONOTONIC, &start_cuda);
         //Result** results = cuda_DijkstraAPSP(graph);
@@ -44,7 +46,7 @@ int main(int argc, char* argv[]) {
         //int mask[13] = {1, 0, 1, 1, 1, 1, 1,  1,  1,  0,  1,  1, 1};
         //fastmin(test, mask, 13);
 
-        //printResults(results, graph.GetSize());
+        printResults(results, graph.GetSize());
         double time_cuda = (end_cuda.tv_sec - start_cuda.tv_sec);
         time_cuda += (end_cuda.tv_nsec - start_cuda.tv_nsec) / 1000000000.0;
         printf("\nRuntime for FWarsh (GPU): %f\n", time_cuda);
@@ -59,6 +61,19 @@ int main(int argc, char* argv[]) {
         cudaMemGetInfo(&free, &totalmem);
         printf("Memory Available: %ld/%ld\n", free, totalmem);
     }
+
+    clock_gettime(CLOCK_MONOTONIC, &start_cuda);
+    Result** results = cuda_BMFord(graph);
+    clock_gettime(CLOCK_MONOTONIC, &end_cuda);
+    double time_cuda = (end_cuda.tv_sec - start_cuda.tv_sec);
+    time_cuda += (end_cuda.tv_nsec - start_cuda.tv_nsec) / 1000000000.0;
+
+    printf("\nRuntime for BMFord (GPU): %f\n", time_cuda);
+
+    printResults(results, graph.GetSize());
+
+    printf("Results for GPU_BMFord and CPU_FWarsh are %s\n",
+               resultsEq(ground_truth, results, graph.GetSize()) ? "equal" : "non-equal");
 
     printf("Done\n");
 }
