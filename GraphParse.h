@@ -31,6 +31,7 @@ typedef struct MultiSSSPArgs {
 
 typedef struct Queue {
     int max;
+    int size;
     int tail;
     int* items;
 } Queue;

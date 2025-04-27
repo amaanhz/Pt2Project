@@ -12,7 +12,7 @@ Result* DijkstraSSSP(const Graph* graph, int src) {
     int* prev = calloc(graph->size, sizeof(int)); // calloc to enforce null initial val
     int items[graph->size];
     Queue queue = {
-        .items = items, .max = graph->size, .tail = 0
+        .items = items, .size = 0, .max = graph->size, .tail = 0
     };
 
     for (int i = 0; i < graph->size; i++) {
@@ -22,7 +22,7 @@ Result* DijkstraSSSP(const Graph* graph, int src) {
 
     dist[src] = 0;
 
-    while (queue.tail > 0) {
+    while (queue.size > 0) {
         int u = dqmin(&queue, dist);
         if (dist[u] == INT_MAX) { continue; }
 

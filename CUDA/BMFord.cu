@@ -92,10 +92,15 @@ Result** cuda_BMFord(GraphMatrix& graph, int block_length) {
     }
     GraphMatrix prev = GraphMatrix(graph, -1);
 
+    size_t free, totalmem;
+    cudaMemGetInfo(&free, &totalmem);
+    printf("Memory Available: %ld/%ld\n", free, totalmem);
     gpuErrchk(cudaMalloc(&dev_dist, sizeof(int) * matSize));
     gpuErrchk(cudaMalloc(&dev_prev, sizeof(int) * matSize));
     gpuErrchk(cudaMalloc(&dev_graph, sizeof(int) * matSize));
 
+    cudaMemGetInfo(&free, &totalmem);
+    printf("Memory Available: %ld/%ld\n", free, totalmem);
     gpuErrchk(cudaMemcpy(dev_dist, &dist[0], sizeof(int) * matSize, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(dev_prev, &prev[0], sizeof(int) * matSize, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(dev_graph, &graph[0], sizeof(int) * matSize, cudaMemcpyHostToDevice));
