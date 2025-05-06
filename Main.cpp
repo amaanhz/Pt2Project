@@ -6,15 +6,16 @@
 #include "GraphParse.h"
 #include "GraphMatrix.h"
 #include "GraphSearch.h"
+#include "CUDA/BMFord.cuh"
 #include "CUDA/Dijkstra.cuh"
 #include "CUDA/FWarsh.cuh"
 
 
 int main(int argc, char* argv[]) {
-    const char* graph_path = "graphs/USairport500";
+    const char* graph_path = "graphs/testgraph_86_converted";
 
     struct timespec start, end;
-    //GraphSearch("graphs/USairport500");
+    //GraphSearch(graph_path);
     auto graph = GraphMatrix(graph_path);
     //graph.printGraph();
     clock_gettime(CLOCK_MONOTONIC, &start);
@@ -29,15 +30,25 @@ int main(int argc, char* argv[]) {
     //printResults(ground_truth, graph.GetSize());
 
     size_t free, totalmem;
-    int bl = 4;
-    for (int bl = 1; bl <= 32; bl++) {
-        printf("Trying block length = %d", bl);
+    struct timespec start_cuda, end_cuda;
 
-        struct timespec start_cuda, end_cuda;
+    clock_gettime(CLOCK_MONOTONIC, &start_cuda);
+    Result** results = cuda_DijkstraAPSP(graph);
+    clock_gettime(CLOCK_MONOTONIC, &end_cuda);
+    double time_cuda = (end_cuda.tv_sec - start_cuda.tv_sec);
+    time_cuda += (end_cuda.tv_nsec - start_cuda.tv_nsec) / 1000000000.0;
+    printf("\nRuntime for Dijkstra (GPU): %f\n", time_cuda);
+
+    printf("Results for GPU_Dijkstra and CPU_FWarsh are %s\n",
+               resultsEq(ground_truth, results, graph.GetSize()) ? "equal" : "non-equal");
+
+    for (int bl = 2; bl <= 2; bl++) {
+        //printf("Trying block length = %d", bl);
+
+
 
         clock_gettime(CLOCK_MONOTONIC, &start_cuda);
-        //Result** results = cuda_DijkstraAPSP(graph);
-        Result** results = cuda_FWarsh(graph, bl);
+        results = cuda_FWarsh(graph, bl);
         clock_gettime(CLOCK_MONOTONIC, &end_cuda);
 
         //int test[13] = {-2, 1, 3, 3, 3, -9, -3, -1, 10, 11, 12,  2, 0};
@@ -45,7 +56,7 @@ int main(int argc, char* argv[]) {
         //fastmin(test, mask, 13);
 
         //printResults(results, graph.GetSize());
-        double time_cuda = (end_cuda.tv_sec - start_cuda.tv_sec);
+        time_cuda = (end_cuda.tv_sec - start_cuda.tv_sec);
         time_cuda += (end_cuda.tv_nsec - start_cuda.tv_nsec) / 1000000000.0;
         printf("\nRuntime for FWarsh (GPU): %f\n", time_cuda);
         //printResult(ground_truth[1], 1, graph.GetSize());
@@ -56,9 +67,22 @@ int main(int argc, char* argv[]) {
 
         printf("Results for GPU_Fwarsh and CPU_FWarsh are %s\n",
                resultsEq(ground_truth, results, graph.GetSize()) ? "equal" : "non-equal");
-        cudaMemGetInfo(&free, &totalmem);
-        printf("Memory Available: %ld/%ld\n", free, totalmem);
+        //cudaMemGetInfo(&free, &totalmem);
+        //printf("Memory Available: %ld/%ld\n", free, totalmem);
     }
+
+    clock_gettime(CLOCK_MONOTONIC, &start_cuda);
+    results = cuda_BMFord(graph);
+    clock_gettime(CLOCK_MONOTONIC, &end_cuda);
+    time_cuda = (end_cuda.tv_sec - start_cuda.tv_sec);
+    time_cuda += (end_cuda.tv_nsec - start_cuda.tv_nsec) / 1000000000.0;
+
+    printf("\nRuntime for BMFord (GPU): %f\n", time_cuda);
+
+    //printResults(results, graph.GetSize());
+
+    printf("Results for GPU_BMFord and CPU_FWarsh are %s\n",
+               resultsEq(ground_truth, results, graph.GetSize()) ? "equal" : "non-equal");
 
     printf("Done\n");
 }

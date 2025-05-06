@@ -4,6 +4,7 @@
 typedef struct BMF_b_args {
     const Graph* graph;
     int** m_dist;
+    int** m_prev;
     int* next_node;
     int* iter;
     Result** results;

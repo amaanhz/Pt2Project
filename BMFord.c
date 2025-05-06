@@ -49,7 +49,7 @@ void BMFordSSSP_t(const void* args) {
 
     const Graph* graph = a->graph;
     pthread_mutex_t* q_lock = a->q_lock;
-    pthread_mutex_t* r_lock = a->r_lock;
+    //pthread_mutex_t* r_lock = a->r_lock;
     int* next_node = a->next_node;
     Result** results = a->results;
 
@@ -63,9 +63,9 @@ void BMFordSSSP_t(const void* args) {
             Result* result = malloc(sizeof(Result));
             result = BMFordSSSP(graph, src);
 
-            pthread_mutex_lock(r_lock);
+            //pthread_mutex_lock(r_lock);
             results[src] = result;
-            pthread_mutex_unlock(r_lock);
+            //pthread_mutex_unlock(r_lock);
         }
         else {
             pthread_mutex_unlock(q_lock);
@@ -80,6 +80,7 @@ void Relax_t(const void* args) {
     BMF_b_args* a = (BMF_b_args*)args;
     const Graph* graph = a->graph;
     int** m_dist = a->m_dist;
+    int** m_prev = a->m_prev;
     Result** results = a->results;
 
     pthread_mutex_t* q_lock = a->q_lock;
@@ -125,6 +126,7 @@ void Relax_t(const void* args) {
             // Perform the relaxation
             if (m_dist[src][v] != INT_MAX && m_dist[src][v] + adj->weight < m_dist[src][v]) {
                 m_dist[src][v] = m_dist[src][v] + adj->weight;
+                m_prev[src][v] = adj->vertex;
             }
 
             // Release locks
@@ -151,15 +153,15 @@ Result** BMFordAPSP_mt_a(const Graph* graph, int numthreads) {
     int next_node = 0;
     pthread_mutex_t q_lock;
     pthread_mutex_init(&q_lock, NULL); // queue lock
-    pthread_mutex_t r_lock;
-    pthread_mutex_init(&r_lock, NULL); // result lock
+    //pthread_mutex_t r_lock;
+    //pthread_mutex_init(&r_lock, NULL); // result lock
 
     MultiSSSPArgs* args = malloc(sizeof(MultiSSSPArgs));
     args->next_node = &next_node;
     args->results = results;
     args->graph = graph;
     args->q_lock = &q_lock;
-    args->r_lock = &r_lock;
+    //args->r_lock = &r_lock;
 
     for (int t = 0; t < numthreads; t++) {
         pthread_create((pthread_t*)threads + t, NULL, (void*)BMFordSSSP_t, (void*)args);
@@ -170,7 +172,7 @@ Result** BMFordAPSP_mt_a(const Graph* graph, int numthreads) {
     }
 
     pthread_mutex_destroy(&q_lock);
-    pthread_mutex_destroy(&r_lock);
+    //pthread_mutex_destroy(&r_lock);
     free(args);
     return results;
 }
@@ -198,14 +200,18 @@ Result** BMFordAPSP_mt_b(const Graph* graph, int numthreads) {
     // dim 3 -> vertex v
     // i.e, m_dist[1][1][2] == minimum distance from 1 to 2 at the 1st iteration
     int** m_dist = malloc(sizeof(int*) * graph->size);
+    int** m_prev = malloc(sizeof(int*) * graph->size);
     for (int u = 0; u < graph->size; u++) {
         m_dist[u] = malloc(sizeof(int) * graph->size);
+        m_prev[u] = malloc(sizeof(int) * graph->size);
         for (int v = 0; v < graph->size; v++) {
             if (u == v) {
                 m_dist[u][v] = 0;
+                m_prev[u][v] = u;
             }
             else {
                 m_dist[u][v] = INT_MAX;
+                m_prev[u][v] = -1;
             }
         }
         // while we're here, initialise the results lists for every node
@@ -220,6 +226,7 @@ Result** BMFordAPSP_mt_b(const Graph* graph, int numthreads) {
     BMF_b_args args = {
         .graph = graph,
         .m_dist = m_dist,
+        .m_prev = m_prev,
         .next_node = &next_node,
         .iter = &iter,
         .results = results,

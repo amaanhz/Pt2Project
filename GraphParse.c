@@ -8,7 +8,7 @@
 void enq(Queue* q, int item) {
     if (q->tail < q->max) {
         q->items[q->tail] = item;
-        q->tail++;
+        q->tail++; q->size++;
     }
     else {
         printf("Tried to enqueue past max size!\n");
@@ -18,31 +18,26 @@ void enq(Queue* q, int item) {
 int dqmin(Queue* q, const int* dist) {
     int min = 0;
     int mindist = INT_MAX;
-    int d;
+    int d, v;
     int j = -1; // save the position in array we need to remove
-    for (int i = 0; i < q->tail; i++) {
-        d = dist[q->items[i]];
-        if (d <= mindist) {
+    for (int i = 0; i < q->max; i++) {
+        v = q->items[i];
+        d = dist[v];
+        if (d <= mindist && v != -1) { // skip dequeued elements
             mindist = d;
-            min = q->items[i];
+            min = v;
             j = i;
         }
     }
     // need to reoragnise second half of queue
-    memmove(&(q->items[j]), &(q->items[j + 1]), sizeof(int) * (q->tail - j)); // move j+1.. to j
-    q->tail--;
-
+    //memmove(&(q->items[j]), &(q->items[j + 1]), sizeof(int) * (q->tail - j)); // move j+1.. to j
+    //q->tail--;
+    if (j != -1) {
+        q->items[j] = -1;
+    }
+    q->size--;
 
     return min;
-}
-
-int dq(Queue* q) {
-    int next = *q->items;
-    q->tail--;
-
-    memmove(q->items + 1, q->items, sizeof(int) * q->tail);
-
-    return next;
 }
 
 int neighbour(const Graph* graph, int u, int v) {

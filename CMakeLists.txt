@@ -38,7 +38,9 @@ add_executable(Pt2Project
         GraphMatrix.cpp
         GraphMatrix.h
         CUDA/FWarsh.cuh
-        CUDA/FWarsh.cu)
+        CUDA/FWarsh.cu
+        CUDA/BMFord.cuh
+        CUDA/BMFord.cu)
 
 target_link_libraries(
         Pt2Project

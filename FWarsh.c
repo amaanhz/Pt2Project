@@ -399,10 +399,6 @@ Result** FWarsh_mt(const Graph* graph, int block_length, int numthreads) {
     pthread_t* threads[numthreads];
     pthread_mutex_t wp_lock;
     pthread_mutex_init(&wp_lock, NULL);
-    pthread_mutex_t dist_lock;
-    pthread_mutex_init(&dist_lock, NULL);
-    pthread_mutex_t prev_lock;
-    pthread_mutex_init(&prev_lock, NULL);
 
 
     Result** results = malloc(sizeof(Result*) * graph->size);
