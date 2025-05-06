@@ -24,7 +24,7 @@ typedef struct Result {
 typedef struct MultiSSSPArgs {
     int* next_node;
     pthread_mutex_t* q_lock;
-    pthread_mutex_t* r_lock;
+    //pthread_mutex_t* r_lock;
     const Graph* graph;
     Result** results;
 } MultiSSSPArgs;

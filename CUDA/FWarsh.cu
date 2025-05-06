@@ -92,10 +92,7 @@ __device__ void block_loop_alt(int* d1, int* p1, int* d2, int* d3, int* p3, int 
 
 __global__ void dep_block (int b, int num_blocks, int bl, int graphLength, int rem, int* dev_dist, int* dev_prev) {
     // B[b, b], B[b, b], B[b, b]
-
-
     if ( threadIdx.x >= bl || threadIdx.y >= bl ) return;
-
 
     int maxIndex = bl;
     if (b == num_blocks - 1) {
@@ -133,8 +130,6 @@ __global__ void dep_block (int b, int num_blocks, int bl, int graphLength, int r
         printf("\n");
     }*/
     int kmax = maxIndex, imax = maxIndex, jmax = maxIndex;
-
-
 
     /*if (threadIdx.x == 0 && threadIdx.y == 0) {
         printf("Block B[%d, %d]\n", b, b);
@@ -198,7 +193,7 @@ __global__ void pdep_blocks (int b, int num_blocks, int bl, int graphLength, int
 
     // need to fetch our block, and block B[b, b]
     extern __shared__ int dist[];
-    int* dist_i = dist + blockSize;/*for (int i = 0; i < num_blocks; i++) {
+    int* dist_i = dist + blockSize; /* for (int i = 0; i < num_blocks; i++) {
         for (int j = 0; j < num_blocks; j++) {
             if (blockX == i && blockY == j && threadIdx.x == 0 && threadIdx.y == 0) {
                 printf("Indep: B[%d, %d]: blockIdx.x = %d, blockIdx.y = %d\n", i, j, blockIdx.x, blockIdx.y);
@@ -374,11 +369,7 @@ Result** cuda_FWarsh(GraphMatrix& graph, int block_length) {
     if (rem == 0) { rem = block_length; }
 
     dim3 block_threads(block_length, block_length);
-
-    int pdep_count = num_blocks * 2 - 2;
     dim3 pdep_dim(num_blocks, num_blocks);
-
-    int indep_count = (num_blocks * num_blocks) - pdep_count - 1;
     dim3 indep_dim(num_blocks - 1, num_blocks - 1);
 
     size_t memsize = sizeof(int) * block_length * block_length * 2;

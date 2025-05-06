@@ -49,7 +49,7 @@ void BMFordSSSP_t(const void* args) {
 
     const Graph* graph = a->graph;
     pthread_mutex_t* q_lock = a->q_lock;
-    pthread_mutex_t* r_lock = a->r_lock;
+    //pthread_mutex_t* r_lock = a->r_lock;
     int* next_node = a->next_node;
     Result** results = a->results;
 
@@ -63,9 +63,9 @@ void BMFordSSSP_t(const void* args) {
             Result* result = malloc(sizeof(Result));
             result = BMFordSSSP(graph, src);
 
-            pthread_mutex_lock(r_lock);
+            //pthread_mutex_lock(r_lock);
             results[src] = result;
-            pthread_mutex_unlock(r_lock);
+            //pthread_mutex_unlock(r_lock);
         }
         else {
             pthread_mutex_unlock(q_lock);
@@ -153,15 +153,15 @@ Result** BMFordAPSP_mt_a(const Graph* graph, int numthreads) {
     int next_node = 0;
     pthread_mutex_t q_lock;
     pthread_mutex_init(&q_lock, NULL); // queue lock
-    pthread_mutex_t r_lock;
-    pthread_mutex_init(&r_lock, NULL); // result lock
+    //pthread_mutex_t r_lock;
+    //pthread_mutex_init(&r_lock, NULL); // result lock
 
     MultiSSSPArgs* args = malloc(sizeof(MultiSSSPArgs));
     args->next_node = &next_node;
     args->results = results;
     args->graph = graph;
     args->q_lock = &q_lock;
-    args->r_lock = &r_lock;
+    //args->r_lock = &r_lock;
 
     for (int t = 0; t < numthreads; t++) {
         pthread_create((pthread_t*)threads + t, NULL, (void*)BMFordSSSP_t, (void*)args);
@@ -172,7 +172,7 @@ Result** BMFordAPSP_mt_a(const Graph* graph, int numthreads) {
     }
 
     pthread_mutex_destroy(&q_lock);
-    pthread_mutex_destroy(&r_lock);
+    //pthread_mutex_destroy(&r_lock);
     free(args);
     return results;
 }
