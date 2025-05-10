@@ -116,15 +116,15 @@ Result** cuda_BMFord(GraphMatrix& graph, int block_length) {
     dim3 grid_dim(num_blocks, num_blocks, graphSize);
     dim3 block_dim(block_length, block_length);
 
-    /*for (int i = 0; i < graphSize; i++) {
-        Relax<<<grid_dim, block_dim>>>(dev_graph, dev_dist, dev_prev, graphSize);
-    }*/
-    dim3 grid_dim2(num_blocks, num_blocks);
     for (int i = 0; i < graphSize; i++) {
-        for (int v = 0; v < graphSize; v++) {
-            Relax_alt<<<grid_dim2, block_dim>>>(dev_graph, dev_dist, dev_prev, graphSize, v);
-        }
+        Relax<<<grid_dim, block_dim>>>(dev_graph, dev_dist, dev_prev, graphSize);
     }
+    //dim3 grid_dim2(num_blocks, num_blocks);
+    //for (int i = 0; i < graphSize; i++) {
+    //    for (int v = 0; v < graphSize; v++) {
+    //        Relax_alt<<<grid_dim2, block_dim>>>(dev_graph, dev_dist, dev_prev, graphSize, v);
+    //    }
+    //}
     cudaDeviceSynchronize();
     cudaPeekAtLastError();
 

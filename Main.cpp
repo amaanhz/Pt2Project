@@ -12,14 +12,15 @@
 
 
 int main(int argc, char* argv[]) {
-    const char* graph_path = "graphs/testgraph_86_converted";
+    char* graph_path = argv[1];
 
     struct timespec start, end;
     //GraphSearch(graph_path);
     auto graph = GraphMatrix(graph_path);
     //graph.printGraph();
     clock_gettime(CLOCK_MONOTONIC, &start);
-    Result** ground_truth = FWarsh_mt(fileparse(graph_path), 10, 8);
+    Result** ground_truth = FWarsh(fileparse(graph_path));
+        //cuda_FWarsh(graph, 2);
     clock_gettime(CLOCK_MONOTONIC, &end);
 
     double time_spent = (end.tv_sec - start.tv_sec);
@@ -40,7 +41,7 @@ int main(int argc, char* argv[]) {
     printf("\nRuntime for Dijkstra (GPU): %f\n", time_cuda);
 
     printf("Results for GPU_Dijkstra and CPU_FWarsh are %s\n",
-               resultsEq(ground_truth, results, graph.GetSize()) ? "equal" : "non-equal");
+        resultsEq(ground_truth, results, graph.GetSize()) ? "equal" : "non-equal");
 
     for (int bl = 2; bl <= 2; bl++) {
         //printf("Trying block length = %d", bl);

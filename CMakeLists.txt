@@ -9,7 +9,6 @@ set_source_files_properties(CUDA/Dijkstra.cu PROPERTIES LANGUAGE CUDA)
 set(CUDA_SEPARABLE_COMPILATION ON)
 
 
-set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; "--default-stream per-thread")
 
 include_directories(
         /usr/local/cuda-12.6/include/
@@ -46,3 +45,7 @@ target_link_libraries(
         Pt2Project
         -lcudadevrt
 )
+
+target_compile_options(Pt2Project PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+        --expt-relaxed-constexpr
+        >)
