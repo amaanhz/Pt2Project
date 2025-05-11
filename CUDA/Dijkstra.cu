@@ -211,10 +211,10 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
 
     cudaDeviceSynchronize();
 
-    cudaStream_t streams[2];
-    gpuErrchk(cudaStreamCreate(streams));
-    gpuErrchk(cudaStreamCreate(streams + 1));
-
+    cudaStream_t streams[dim];
+    for (int i = 0; i < dim; i++) {
+        gpuErrchk(cudaStreamCreate(streams + i));
+    }
     cudaDeviceSynchronize();
 
     int grid_dim = dim / BLOCK_SIZE + (dim % BLOCK_SIZE > 0);
@@ -225,9 +225,9 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
 
     size_t free, totalmem;
     for (int n = 0; n < dim; n++) {
-        get_mins<<<process_grid, BLOCK_SIZE, sizeof(int) * BLOCK_SIZE * 2, *streams>>>(dev_dist, dev_queues, out_minid, dim, min_accumulator);
-        get_mins_rnd2<<<dim, BLOCK_SIZE, sizeof(int) * BLOCK_SIZE * 2, *streams>>>(dev_dist, min_accumulator, out_minid, grid_dim, dim);
-        dev_process<<<process_grid, BLOCK_SIZE, 0, *streams>>>(dev_graph, dev_dist, dev_prev, dev_queues, dim, out_minid);
+        get_mins<<<process_grid, BLOCK_SIZE, sizeof(int) * BLOCK_SIZE * 2, streams[n]>>>(dev_dist, dev_queues, out_minid, dim, min_accumulator);
+        get_mins_rnd2<<<dim, BLOCK_SIZE, sizeof(int) * BLOCK_SIZE * 2, streams[n]>>>(dev_dist, min_accumulator, out_minid, grid_dim, dim);
+        dev_process<<<process_grid, BLOCK_SIZE, 0, streams[n]>>>(dev_graph, dev_dist, dev_prev, dev_queues, dim, out_minid);
         cudaDeviceSynchronize();
     }
 
