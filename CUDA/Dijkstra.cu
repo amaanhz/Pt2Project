@@ -31,142 +31,18 @@ __host__ __device__ inline void printArr(const int* arr, const int* mask, int si
     }
 }
 
-__global__ void dev_min(const int* arr, const int* idxs, const int* mask, int size,
-    int* out_vals, int* out_idxs, int* out_min, int* out_minid, bool idxs_exist) {
-    int tidx = threadIdx.x + blockIdx.x * blockDim.x; // how far into the array we index
-    //bool idxs_exist = *idxs != -1;
-    //if (tidx == 0) {
-    //    printf("*idxs == %d\n", *idxs);
-    //}
-    int split = size >> 1; // array is split into two
-    // we will compare pairs from each half
-
-    extern __shared__ int minvals[]; // shared in the block
-    int* argmins = (int*)&minvals[blockDim.x]; // arrays are just next to eachother
-
-    if (tidx > split) { return; }
-
-
-    //if (tidx == 0) { printArr(arr, mask, size); }
-
-    int min = arr[tidx];
-    int minid = tidx;
-    int otherid = split + tidx;
-
-    //if (otherid < size) {
-        if (mask[otherid] && ( arr[otherid] < min || !mask[tidx])) {
-            // if arr[tidx] is not in the queue, default to arr[otherid] even if its not smaller
-            //printf("choosing %d at index %d over %d at index %d\n", arr[otherid], otherid, arr[tidx], tidx);
-            min = arr[otherid];
-            minid = otherid;
-        }
-        if (!mask[tidx] && !mask[otherid]) { // both nodes are not in the queue
-            min = INT_MAX;
-        }
-    //}
-
-
-    minvals[threadIdx.x] = min; // highest sharing we can do here is block-wide
-    argmins[threadIdx.x] = minid;
-
-    //printf("argmins[%d] = %d\n", threadIdx.x, argmins[threadIdx.x]);
-
-    // should have minimum between pairs in first and second half of array in each block's work set
-    // now need to find minimum of all these
-    // so lets the find the min within each block, since we are shared here
-    // keep splitting, like we did for the full array
-    for (int bsplit = (int)(size < blockDim.x ? size >> 1 : blockDim.x) >> 1; bsplit >= 0; bsplit >>= 1) {
-        int threshold = (bsplit & 1 ? bsplit + 1 : bsplit);
-        if (threadIdx.x > threshold) {
-            //printf("tidx %d is killing itself!\n", tidx);
-            return;
-        } // dump any threads right of the split
-        otherid = threshold + threadIdx.x; // compare against corresponding past the split
-        if (threadIdx.x == 0 && bsplit == 0) { otherid = 1; }
-        if (otherid > (size >> 1)) { return; }
-        int oidx = otherid + blockIdx.x * blockDim.x;
-        if (oidx > size) {
-            //printf("tidx %d is killing itself! (oidx : %d)\n", tidx, oidx);
-            return;
-        }
-        //if (tidx == 0) { printf("otherid = %d, argmins[otherid] = %d, minvals[otherid] = %d, threshold = %d\n",
-        //    otherid, argmins[otherid], minvals[otherid], threshold); }
-
-        //__syncthreads();
-        if ( mask[argmins[otherid]] && (otherid < blockDim.x && minvals[otherid] < min) || !mask[minid]) {
-            //printf("tidx %d -> choosing %d at index %d (mask: %d) over %d at index %d (mask: %d, threshold: %d)\n",
-            //    tidx, minvals[otherid], otherid, mask[argmins[otherid]], min, minid, mask[minid], threshold);
-            min = minvals[otherid];
-            minid = argmins[otherid];
-        }
-        minvals[threadIdx.x] = min;
-        argmins[threadIdx.x] = minid;
-        if (threadIdx.x == 0 && bsplit == 0) { break; }
-    }
-
-    __syncthreads();
-    if (threadIdx.x == 0) {
-        out_vals[blockIdx.x] = minvals[0];
-        if (!idxs_exist) {
-            out_idxs[blockIdx.x] = argmins[0];
-        }
-        else {
-            out_idxs[blockIdx.x] = idxs[argmins[0]];
-        }
-        if (gridDim.x == 1) {
-            *out_min = out_vals[0];
-            *out_minid = out_idxs[0];
-        }
-    }
-}
-
-void fastmin(const int* arr, const int* queues, int* in_idxs, int size, int* out_vals, int* out_idxs,
-    int* block_id_masks, int grid_size, int* out_min, int* out_minid, cudaStream_t* stream) {
-    int oldsize = size;
-    const int* d_arr = arr; const int* mask = queues; int* idxs = in_idxs;
-
-    //printf("grid size = %d\n", grid_size);
-    while (size > 1) {
-        grid_size = ceil((size / (double) BLOCK_SIZE) / 2);
-        int mem_size = BLOCK_SIZE * (sizeof(int) * 2);
-
-        int block_size = BLOCK_SIZE;
-
-
-        dev_min<<<grid_size, block_size, mem_size, *stream>>>(d_arr, idxs, mask, size, out_vals, out_idxs, out_min,
-            out_minid, !(size==oldsize));
-
-        size = grid_size;
-        idxs = out_idxs;
-        d_arr = out_vals;
-        mask = block_id_masks;
-    }
-
-
-    //printf("\n\n");
-    //int resetIdxs[1] = {-1};
-    //gpuErrchk(cudaMemcpy(in_idxs, resetIdxs, sizeof(int), cudaMemcpyHostToDevice)) // set *idxs -> -1
-
-    //int min; cudaMemcpy(&min, out_vals, sizeof(int), cudaMemcpyDeviceToHost);
-    //int argmin; cudaMemcpy(&argmin, out_idxs, sizeof(int), cudaMemcpyDeviceToHost);
-    //printf("Min = %d at index %d\n", min, argmin);
-    //const int* actualiter = min_element(arr, arr + oldsize);
-    //int actual = *actualiter; long int actualidx = actualiter - arr;
-    //printf("Actual min = %d at index %ld\n", actual, actualidx);
-}
-
-
 __global__ void dev_process(const int* edges, int* dist, int* prev, int* queues,
-    int dim, int* node_p, int src) {
-    int u = *node_p;
+    int dim, const int* min_array) {
+    int src = blockIdx.x;
+    int u = min_array[src];
 
-    int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+    int intoSrcEdges = blockIdx.y * blockDim.x + threadIdx.x; // -> (a, v) for any a
 
-    if (tidx >= dim) { return; }
+    if (intoSrcEdges >= dim) { return; }
 
     int uIndex = src * dim + u;
-    int myIndex = u * dim + tidx; // "v"
-    int sdtidx = src * dim + tidx;
+    int myIndex = u * dim + intoSrcEdges; // w(u, v) in graph
+    int sdtidx = src * dim + intoSrcEdges;
 
     queues[uIndex] = 0;
 
@@ -190,14 +66,116 @@ __global__ void dev_process(const int* edges, int* dist, int* prev, int* queues,
     }
 }
 
-void process_node(int* graph, int* dist, int* prev, int* queues, int* node,
-    int dim, int grid_size, cudaStream_t* stream, int src) {
-    // row is the source node, col is the shortest distance node from source, u
-    // dist[u] == node
-    // Graph.Edges(u, v) which are neighbours of u == &graph[u]
-    dev_process<<<grid_size, BLOCK_SIZE, 0, *stream>>>(graph, dist, prev, queues, dim, node, src);
+__device__ void fold_mins(int* masked, int* indexes, int size) {
+    int fold_size = size > 1 ? (size >> 1) + 1 : 0;
+    /*if (blockIdx.x == 1 && threadIdx.x == 0) {
+        printf("Before folds\n");
+        printArr(masked, indexes, size);
+        printf("\n");
+    }*/
+    while (fold_size > 0) {
+        if (threadIdx.x <= fold_size) {
+            int otherIndex = fold_size + threadIdx.x;
+            //if (blockIdx.x == 1) printf("threadIdx.x = %d, otherIndex = %d\n", threadIdx.x, otherIndex);
+            int minval = masked[threadIdx.x];
+            int mindex = indexes[threadIdx.x];
+            //if (blockIdx.x == 1) { printf("masked[%d] = %d, masked[%d] = %d, %d\n", threadIdx.x, minval, otherIndex, masked[otherIndex], masked[otherIndex] < minval); }
+            if (otherIndex < blockDim.x) {
+                if (masked[otherIndex] < minval) {
+                    minval = masked[otherIndex];
+                    mindex = indexes[otherIndex];
+                }
+            }
+            masked[threadIdx.x] = minval;
+            indexes[threadIdx.x] = mindex;
+        }
+        /*if (blockIdx.x == 1 && threadIdx.x == 0) {
+            printf("fold_size = %d\n", fold_size);
+            printArr(masked, indexes, size);
+            printf("\n");
+        }*/
+        fold_size = fold_size > 2 ? (fold_size >> 1) + 1 : fold_size >> 1;
+        __syncthreads();
+    }
 }
 
+__global__ void get_mins_rnd2(const int* arr, const int* mindx_acc, int* out_minid, int size, int graph_size) {
+    extern __shared__ int minvals[];
+    int* mindxs = minvals + blockDim.x;
+
+    mindxs[threadIdx.x] = mindx_acc[blockIdx.x * size + threadIdx.x];
+    if (mindxs[threadIdx.x] > -1) {
+        minvals[threadIdx.x] = arr[blockIdx.x * graph_size + mindxs[threadIdx.x]];
+    }
+    else {
+        minvals[threadIdx.x] = INT_MAX;
+    }
+
+    if (threadIdx.x >= size) { // overflowing
+        mindxs[threadIdx.x] = -1;
+        minvals[threadIdx.x] = INT_MAX;
+    }
+
+    __syncthreads();
+
+    /*if (blockIdx.x == 1 && threadIdx.x == 0) {
+        printArr(minvals, mindxs, size);
+        printf("\n");
+    }*/
+
+    fold_mins(minvals, mindxs, size);
+
+    if (threadIdx.x == 0) {
+        out_minid[blockIdx.x] = mindxs[0];
+        //if (blockIdx.x == 1) printf("2nd round min found = %d, actual min = %d\n\n", minvals[0], *min_element(minvals, minvals + blockDim.x));
+    }
+}
+
+__global__ void get_mins(const int* arr, const int* queues, int* out_minid, int size, int* mindx_acc) {
+
+    int tidx = blockIdx.x * size + blockIdx.y * blockDim.x + threadIdx.x; // our edge
+
+
+    // initialise array with queues to mask
+    extern __shared__ int masked[];
+    int* indexes = masked + blockDim.x;
+    masked[threadIdx.x] = queues[tidx] ? arr[tidx] : INT_MAX;
+    indexes[threadIdx.x] = blockIdx.y * blockDim.x + threadIdx.x;
+
+    if (blockIdx.y * blockDim.x + threadIdx.x >= size) { // overflowing
+        masked[threadIdx.x] = INT_MAX;
+        indexes[threadIdx.x] = -1;
+        return;
+    }
+
+    __syncthreads();
+
+    fold_mins(masked, indexes, size);
+
+    __syncthreads();
+
+    if (threadIdx.x == 0) {
+        if (masked[1] < masked[0]) { masked[0] = masked[1]; indexes[0] = indexes[1]; }
+        //if (blockIdx.x == 1) printf("min found for block %d = %d, indexes[0] = %d, actual min = %d\n", blockIdx.y, masked[0], indexes[0], *min_element(masked, masked + blockDim.x));
+        mindx_acc[blockIdx.x * gridDim.y + blockIdx.y] = masked[0] != INT_MAX ? indexes[0] : -1;
+        //out_minid[blockIdx.x] = indexes[0];
+    }
+
+
+    /*if (threadIdx.x == 0) {
+        int* miniter = min_element(masked, masked + BLOCK_SIZE);
+        //printf("Found min %d at index %d (source: %d)\n", *miniter, miniter - masked, blockIdx.x);
+        min_acc[blockIdx.x * gridDim.y + blockIdx.y] = miniter - masked + blockIdx.y * blockDim.y;
+
+        /*if (gridDim.y == 1) {
+            out_minid[blockIdx.x] = min_acc[blockIdx.x * gridDim.y + blockIdx.y];
+            printf("Setting out_minid[%d] = %d\n", blockIdx.x, min_acc[blockIdx.x * gridDim.y + blockIdx.y]);
+        }#1#
+    }
+
+    __syncthreads();*/
+
+}
 
 Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
     int dim = graph.GetSize();
@@ -214,34 +192,16 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
 
     int total = dim*dim;
 
-    //printArr(graph.GetMatrix(), prev.GetMatrix(), total);
-
-    //graph.printGraph();
-
-    int grid_size = ceil((total / (double) BLOCK_SIZE) / 2);
     int* dev_dist; int* dev_queues;
     gpuErrchk(cudaMalloc(&dev_dist, total*sizeof(int)));
     gpuErrchk(cudaMemcpy(dev_dist, dist.GetMatrix(), total*sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMalloc(&dev_queues, total*sizeof(int)));
     gpuErrchk(cudaMemcpy(dev_queues, queues.GetMatrix(), total*sizeof(int), cudaMemcpyHostToDevice));
 
-    int* out_min; int* out_minid;
-    gpuErrchk(cudaMalloc(&out_min, sizeof(int) * dim));
+    int* out_minid;
     gpuErrchk(cudaMalloc(&out_minid, sizeof(int) * dim));
 
-    int* dev_idxs; int t[1] = {-1};
-    gpuErrchk(cudaMalloc(&dev_idxs, total*sizeof(int)));
-
-
-    int* out_vals; int* out_idxs;
-    gpuErrchk(cudaMalloc(&out_vals, dim*grid_size*sizeof(int)));
-    gpuErrchk(cudaMalloc(&out_idxs, dim*grid_size*sizeof(int)));
-
-    int* blockmasks = new int[grid_size];
-    int* block_id_masks;
-    for (int i = 0; i < grid_size; i++) { blockmasks[i] = 1; }
-    gpuErrchk(cudaMalloc(&block_id_masks, grid_size*sizeof(int)));
-    gpuErrchk(cudaMemcpy(block_id_masks, blockmasks, grid_size*sizeof(int), cudaMemcpyHostToDevice));
+    //printArr(graph.GetMatrix(), queues.GetMatrix(), total);
 
     int* dev_graph; int* dev_prev;
     gpuErrchk(cudaMalloc(&dev_graph, total * sizeof(int)));
@@ -257,18 +217,17 @@ Result** cuda_DijkstraAPSP(GraphMatrix& graph) {
 
     cudaDeviceSynchronize();
 
+    int grid_dim = dim / BLOCK_SIZE + (dim % BLOCK_SIZE > 0);
+    dim3 process_grid(dim, grid_dim);
+
+    int* min_accumulator;
+    gpuErrchk(cudaMalloc(&min_accumulator, sizeof(int) * grid_dim * dim));
+
     size_t free, totalmem;
     for (int n = 0; n < dim; n++) {
-        for (int m = 0; m < dim; m++) {
-            int indexIn = m * dim;
-            fastmin(dev_dist + indexIn, dev_queues + indexIn, dev_idxs + indexIn, dim, out_vals + m * grid_size,
-                out_idxs + m * grid_size, block_id_masks, grid_size, out_min + m, out_minid + m,
-                streams
-                );
-        }
-        for (int m = 0; m < dim; m++) {
-            process_node(dev_graph, dev_dist, dev_prev, dev_queues, out_minid + m, dim, grid_size, streams, m);
-        }
+        get_mins<<<process_grid, BLOCK_SIZE, sizeof(int) * BLOCK_SIZE * 2, *streams>>>(dev_dist, dev_queues, out_minid, dim, min_accumulator);
+        get_mins_rnd2<<<dim, BLOCK_SIZE, sizeof(int) * BLOCK_SIZE * 2, *streams>>>(dev_dist, min_accumulator, out_minid, grid_dim, dim);
+        dev_process<<<process_grid, BLOCK_SIZE, 0, *streams>>>(dev_graph, dev_dist, dev_prev, dev_queues, dim, out_minid);
         cudaDeviceSynchronize();
     }
 

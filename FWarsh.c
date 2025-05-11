@@ -380,7 +380,6 @@ void FWarsh_t(const void* args) {
 
                 pthread_mutex_lock(&dep_locks[diag->x]);
                 deps[diag->x]++;
-                int t = deps[diag->x] == total_blocks;
                 pthread_mutex_unlock(&dep_locks[diag->x]);
 
                 pthread_cond_broadcast(&dep_conds[diag->x]);

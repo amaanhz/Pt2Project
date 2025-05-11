@@ -69,7 +69,7 @@ int GraphSearch(const char* file) {
 
     time_spent = (end.tv_sec - start.tv_sec);
     time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-    printf("Runtime for Floyd-Warshall (Seq: Non-Blocking): %f\n", time_spent);
+    printf("Runtime for FWarsh (Seq: Non-Blocking): %f\n", time_spent);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     f_results = FWarsh_blocking(graph, 10);
@@ -77,7 +77,7 @@ int GraphSearch(const char* file) {
 
     time_spent = (end.tv_sec - start.tv_sec);
     time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-    printf("Runtime for Floyd-Warshall (Seq: Blocking): %f\n", time_spent);
+    printf("Runtime for FWarsh (Seq: Blocking): %f\n", time_spent);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     f_results = FWarsh_mt(graph, 10, 16);
@@ -85,7 +85,7 @@ int GraphSearch(const char* file) {
 
     time_spent = (end.tv_sec - start.tv_sec);
     time_spent += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-    printf("Runtime for Floyd-Warshall (MT): %f\n", time_spent);
+    printf("Runtime for FWarsh (MT): %f\n", time_spent);
 
     printf("\n");
 
