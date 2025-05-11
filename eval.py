@@ -29,7 +29,7 @@ if __name__ == "__main__":
     shutil.rmtree("../graphs/eval_graphs")
     os.mkdir("../graphs/eval_graphs")
 
-    for i in range(2, 100, 3):
+    for i in range(100, 1005, 3):
         print(f"Testing |V| = {i}")
         edgenum = int(i * (i - 1) / 3)
         G = nx.gnm_random_graph(i, edgenum, directed=True)
