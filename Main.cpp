@@ -70,11 +70,11 @@ void run_algo(unordered_map<string, int> algos, const string& algo, Graph* graph
         algo_name = "Dijkstra (GPU)";
         break;
         case 8:
-            result = cuda_BMFord(graphMatrix, 32);
+            result = cuda_BMFord(graphMatrix, 2);
         algo_name = "Bellman-Ford (GPU)";
         break;
         case 9:
-            result = cuda_FWarsh(graphMatrix, 4);
+            result = cuda_FWarsh(graphMatrix, 2);
         algo_name = "FWarsh (GPU)";
         break;
         default:
@@ -87,6 +87,8 @@ void run_algo(unordered_map<string, int> algos, const string& algo, Graph* graph
 
     //printResult(result[49], 49, graphLL->size);
     //printResult(ground_truth[49], 49, graphLL->size);
+
+    //printResults(result, graphLL->size);
 
     printf("%s correct: %d\n", algo.c_str(), resultsEq(ground_truth, result, graphLL->size));
     printf("%f\n", time_spent);
