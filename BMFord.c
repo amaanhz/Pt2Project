@@ -54,7 +54,8 @@ void BMFordSSSP_t(const void* args) {
     Result** results = a->results;
 
     while (1) {
-        pthread_mutex_lock(q_lock);
+        int err = pthread_mutex_trylock(q_lock);
+        //if (err < 0) { printf("ERROR ON TRYLOCK!"); }
         int src = *next_node;
         if (src < graph->size) {
             (*next_node)++;

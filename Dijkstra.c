@@ -26,14 +26,16 @@ Result* DijkstraSSSP(const Graph* graph, int src) {
         int u = dqmin(&queue, dist);
         if (dist[u] == INT_MAX) { continue; }
 
-        for (int i = 0; i < queue.tail; i++) {
+        for (int i = 0; i < queue.size; i++) {
             int v = queue.items[i];
-            int d = neighbour(graph, u, v);
-            if (d) {
-                int thruU = dist[u] + d;
-                if (thruU < dist[v]) {
-                    dist[v] = thruU;
-                    prev[v] = u;
+            if (v != -1) {
+                int d = neighbour(graph, u, v);
+                if (d) {
+                    int thruU = dist[u] + d;
+                    if (thruU < dist[v]) {
+                        dist[v] = thruU;
+                        prev[v] = u;
+                    }
                 }
             }
         }
@@ -58,7 +60,8 @@ void DijkstraSSSP_t(const void* args) { // Initialise SSSP threads
     ///////////////////////
 
     while (1) {
-        pthread_mutex_lock(q_lock);
+        int err = pthread_mutex_trylock(q_lock);
+        //if (err < 0) { printf("ERROR ON TRYLOCK!"); }
         int src = *next_node;
         if (src < graph->size) {
             (*next_node)++;

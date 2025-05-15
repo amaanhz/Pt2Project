@@ -22,11 +22,13 @@ int dqmin(Queue* q, const int* dist) {
     int j = -1; // save the position in array we need to remove
     for (int i = 0; i < q->max; i++) {
         v = q->items[i];
-        d = dist[v];
-        if (d <= mindist && v != -1) { // skip dequeued elements
-            mindist = d;
-            min = v;
-            j = i;
+        if (v != -1) {
+            d = dist[v];
+            if (d <= mindist) { // skip dequeued elements
+                mindist = d;
+                min = v;
+                j = i;
+            }
         }
     }
     // need to reoragnise second half of queue
@@ -187,7 +189,7 @@ int resultEq(const Result* r1, const Result* r2, int size) {
     for (int i = 0; i < size; i++) {
         if (r1->dist[i] != r2->dist[i]) // Don't care about exact route, as long as distance is the same
         {
-            printf("Inequality between distance/routes for node %d\n", i);
+            //printf("Inequality between distance/routes for node %d\n", i);
             return 0;
         }
     }
@@ -197,7 +199,7 @@ int resultEq(const Result* r1, const Result* r2, int size) {
 int resultsEq(Result** r1, Result** r2, int size) {
     for (int i = 0; i < size; i++) {
         if (!resultEq(r1[i], r2[i], size)) {
-            printf("Unequal results for APSP at node %d\n\n", i);
+            //printf("Unequal results for APSP at node %d\n\n", i);
             return 0;
         }
     }

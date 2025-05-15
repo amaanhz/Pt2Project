@@ -1,4 +1,7 @@
 #pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "GraphParse.h"
 
 typedef struct BMF_b_args {
@@ -27,3 +30,7 @@ Result** BMFordAPSP_mt_a(const Graph* graph, int numthreads);
 // Embarassingly parallel
 Result** BMFordAPSP_mt_b(const Graph* graph, int numthreads);
 // Less embarassingly parallel
+
+#ifdef __cplusplus
+    }
+#endif
