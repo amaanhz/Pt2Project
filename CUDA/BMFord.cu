@@ -84,6 +84,8 @@ __global__ void Relax(int* dev_graph, int* dev_dist, int* dev_prev, int graphSiz
 }
 
 Result** cuda_BMFord(GraphMatrix& graph, int block_length) {
+    //graph.printGraph();
+
     int graphSize = graph.GetSize(); int matSize = graphSize * graphSize;
     int* dev_dist; int* dev_prev; int* dev_graph;
     GraphMatrix dist = GraphMatrix(graph, INT_MAX);

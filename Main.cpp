@@ -28,8 +28,8 @@ int parse_number(char* threads) {
     return total;
 }
 
-void run_algo(unordered_map<string, int> algos, const string& algo, Graph* graphLL, GraphMatrix graphMatrix,
-        Result** ground_truth, int numthreads=16) {
+void run_algo(unordered_map<string, int> algos, const string& algo, Graph* graphLL, GraphMatrix* graphMatrix,
+        Result** ground_truth, int numthreads=16, int bmf_bs=32, int fwarsh_bs=10) {
     int mapped_algo = algos[algo];
     string algo_name = "ERROR!";
     Result** result = NULL;
@@ -66,15 +66,15 @@ void run_algo(unordered_map<string, int> algos, const string& algo, Graph* graph
         algo_name = "FWarsh (MT)";
         break;
         case 7:
-            result = cuda_DijkstraAPSP(graphMatrix);
+            result = cuda_DijkstraAPSP(*graphMatrix);
         algo_name = "Dijkstra (GPU)";
         break;
         case 8:
-            result = cuda_BMFord(graphMatrix, 2);
+            result = cuda_BMFord(*graphMatrix, bmf_bs);
         algo_name = "Bellman-Ford (GPU)";
         break;
         case 9:
-            result = cuda_FWarsh(graphMatrix, 2);
+            result = cuda_FWarsh(*graphMatrix, fwarsh_bs);
         algo_name = "FWarsh (GPU)";
         break;
         default:
@@ -108,11 +108,14 @@ int main(int argc, char* argv[]) {
     auto graphLL = fileparse(graph_path);
     auto graphMatrix = GraphMatrix(graph_path);
 
+
     Result** ground_truth = BMFordAPSP(graphLL);
 
-    int numthreads = 16;
+
     int argn = 2;
     while (argn  < argc) {
+        int numthreads = 16;
+        int bmf_bs = 32; int fwarsh_bs = 10;
         // algo name
         string algo = argv[argn];
         argn++;
@@ -123,8 +126,16 @@ int main(int argc, char* argv[]) {
             numthreads = parse_number(argv[argn]);
             argn++;
         }
+        else if (algo == "cuda_bmf") {
+            bmf_bs = parse_number(argv[argn]);
+            argn++;
+        }
+        else if (algo == "cuda_fwarsh") {
+            fwarsh_bs = parse_number(argv[argn]);
+            argn++;
+        }
         for (int n = 0; n < nruns; n++) {
-            run_algo(algos, algo, graphLL, graphMatrix, ground_truth, numthreads);
+            run_algo(algos, algo, graphLL, &graphMatrix, ground_truth, numthreads, bmf_bs, fwarsh_bs);
         }
     }
 }

@@ -1,5 +1,7 @@
 import os
 import sys
+from subprocess import CalledProcessError
+
 import networkx as nx
 import random
 import subprocess
@@ -27,7 +29,7 @@ algos = {
     },
     "bmfmt" : {
         "name" : "Bellman-Ford (Multi-Threaded)",
-        "color": "cyan"
+        "color": "deepskyblue"
     },
     "fwarshseq" : {
         "name": "Floyd-Warshall (Sequential)",
@@ -70,17 +72,22 @@ def generate_graphs(graph_path, min_nodes, max_nodes, interval, edgeformula):
                 if n < len(edges) - 1:
                     f.write("\n")
 
-def bmfseqfunc(x, a, b, c):
+def func1(x, a, b, c):
     return a * x ** 4 + b * x ** 2 + c
 
+def func2(x, a, b, c, d):
+    return a * np.exp(- b * x + c) + d
+    #return -a * np.log(b * x + c) + d
+    #return a * (x - b) ** 4 + c * x ** 2 + d
+
 if __name__ == "__main__":
-    graph_path = "graphs/eval_sparse_graphs"
+    graph_path = "graphs/eval_graphs"
 
     #shutil.rmtree("../" + graph_path)
     #os.mkdir("../" + graph_path)
 
     #generate_graphs(graph_path, 1004, 1008, 4, lambda x : int(x * (x - 1) / 20))
-    reps = 4
+    reps = 5
 
     agg_results = {}
 
@@ -93,20 +100,25 @@ if __name__ == "__main__":
                       ["fwarshseq", "fwarshblockseq"],
                       ["fwarshseq", "fwarshblockseq", "fwarshmt"],
                       ["fwarshseq", "fwarshmt", "cuda_fwarsh"],
+                      ["djseq", "bmfseq", "fwarshseq"],
                       ["cuda_dj", "cuda_bmf", "cuda_fwarsh"],
                       ["djmt", "cuda_dj"],
                       ["bmfmt", "cuda_bmf"],
                       ["fwarshmt", "cuda_fwarsh"],
                       ["djmt", "fwarshmt"],
                       ["cuda_dj", "cuda_fwarsh"],
-                      ["djseq", "fwarshseq"]]
+                      ["djseq", "fwarshseq"],
+                      ["djmt", "bmfmt", "fwarshmt"]]
 
-    # algo_groupings = [["djmt", "bmfmt", "fwarshmt"],
+    # algo_groupings = [["djmt"],
+    #                   ["bmfmt"],
+    #                   ["fwarshmt"],
+    #                   ["djmt", "bmfmt"],
     #                   ["djmt", "fwarshmt"],
-    #                   ["djmt", "cuda_dj"],
-    #                   ["bmfmt", "cuda_bmf"],
-    #                   ["fwarshmt", "cuda_fwarsh"],
-    #                   ["cuda_dj", "cuda_bmf", "cuda_fwarsh"]]
+    #                   ["bmfmt", "fwarshmt"],
+    #                   ["djmt", "bmfmt", "fwarshmt"]]
+
+    # algo_groupings = [["cuda_fwarsh"]]
 
 
 
@@ -117,17 +129,20 @@ if __name__ == "__main__":
             "errors" : [[], []],
             "vcounts" : [],
             "results" : [],
+            "stddev" : []
         }
 
-    for i, f in enumerate(sorted(os.listdir("../" + graph_path), key=lambda x : int(x[9:].replace("_", "")))[0:125:5]):
+    bmf_bs = 32
+    fwarsh_bs = 10
+
+    for i, f in enumerate(sorted(os.listdir("../" + graph_path), key=lambda x : int(x[9:].replace("_", "")))[0:126:5]):
+        vertices = f.split(sep=os.sep)[-1].split(sep="_")[1]
+        print(f"{run_algos} Graph #{i}: Testing {vertices} vertices")
+
         pvals = {}
 
         for algo in run_algos:
             pvals[algo] = []
-
-        vertices = f.split(sep=os.sep)[-1].split(sep="_")[1]
-        print(f"{run_algos} Graph #{i}: Testing {vertices} vertices");
-
 
         args = ["./Pt2Project", graph_path + "/" + f]
         for algo in run_algos:
@@ -135,8 +150,15 @@ if __name__ == "__main__":
             args.append(str(reps))
             if (algo == "djmt" or algo == "fwarshmt" or algo == "bmfmt"):
                 args.append("16")
+            elif (algo == "cuda_fwarsh"):
+                args.append(str(fwarsh_bs))
+            elif (algo == "cuda_bmf"):
+                args.append(str(bmf_bs))
         print(" ".join(args))
-        out = subprocess.run(args, check=True, stdout=subprocess.PIPE).stdout.decode("ascii")
+        try :
+            out = subprocess.run(args, check=True, stdout=subprocess.PIPE).stdout.decode("ascii")
+        except CalledProcessError:
+            continue
 
         filtered = [x.split() for x in out.splitlines() if x != ""]
         it = iter(filtered)
@@ -150,11 +172,13 @@ if __name__ == "__main__":
                 point_values = pvals[algo]
 
                 correct = bool(int(info[-1]))
+                #print(f"{algo}: {correct}")
                 runtime = float(runtime_out[0])
                 point_values.append(runtime)
 
         for algo in run_algos:
             errs = agg_results[algo]["errors"]
+            stddev = agg_results[algo]["stddev"]
             vertex_counts = agg_results[algo]["vcounts"]
             results = agg_results[algo]["results"]
             point_values = pvals[algo]
@@ -162,8 +186,10 @@ if __name__ == "__main__":
             vertex_counts.append(vertices)
             errs[0].append(min(point_values))
             errs[1].append(max(point_values))
+            stddev.append(np.std(point_values, dtype=float))
             results.append(np.mean(point_values))
 
+    plt.style.use("ggplot")
 
     for n, group in enumerate(algo_groupings):
         for algo in group:
@@ -172,27 +198,41 @@ if __name__ == "__main__":
             plotinfo = algos[algo]
             results = np.array(agg_results[algo]["results"])
             vertex_counts = np.array(agg_results[algo]["vcounts"], dtype=int)
-            params, _ = opt.curve_fit(bmfseqfunc, vertex_counts, results)
+
+            quint_params, _ = opt.curve_fit(func1, vertex_counts, results)
+            #exp_params, _ = opt.curve_fit(func2, vertex_counts, results)
+
             errs = agg_results[algo]["errors"]
-            print(params)
+            stddev = agg_results[algo]["stddev"]
+            #print(quint_params)
             plt.errorbar(vertex_counts,
                          results,
-                         yerr=errs,
+                         yerr=stddev,
                          fmt="x",
                          color=plotinfo["color"],
                          ecolor=plotinfo["color"],
                          capsize=4,
                          linestyle="none",
+                         markevery=1,
                          errorevery=1)
             plt.plot(vertex_counts,
-                     bmfseqfunc(vertex_counts, *params),
+                     func1(vertex_counts, *quint_params),
                      label=plotinfo["name"],
-                     color=plotinfo["color"])
+                     color=plotinfo["color"],
+                     linewidth=1.0)
+            # plt.plot(vertex_counts,
+            #         func2(vertex_counts, *exp_params),
+            #         label=plotinfo["name"],
+            #         color=plotinfo["color"],
+            #          linewidth=1.0)
+
+        #plt.axvline(16, color="k", linestyle="--", label="Max Concurrent Threads")
 
         plt.xlabel("Vertex Count")
         plt.ylabel("Runtime (s)")
-        plt.title(f"Runtime against # of vertices")
+        #plt.title(f"Runtime against Thread Count")
         plt.ylim(bottom = 0)
+        plt.tight_layout()
         plt.legend()
 
     plt.show()
